@@ -18,14 +18,13 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
 public class ConnectionManager {
-    private static ConnectionManager instance;
     private Map<String, ConnectionDetails> connections;
     private static final String FILE_PATH = System.getProperty("user.home") + File.separator + "CytoscapeConfiguration"
             + File.separator + "arangodb-connection.json";
     private final Gson gson;
 
     // Private constructor to prevent instantiation
-    private ConnectionManager() {
+    public ConnectionManager() {
         connections = new HashMap<>();
         gson = new GsonBuilder()
                 .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
@@ -33,14 +32,6 @@ public class ConnectionManager {
 
         loadConnections();
 
-    }
-
-    // Public method to provide access to the instance
-    public static synchronized ConnectionManager getInstance() {
-        if (instance == null) {
-            instance = new ConnectionManager();
-        }
-        return instance;
     }
 
     // Method to add a connection
@@ -119,7 +110,26 @@ public class ConnectionManager {
 
     }
 
+    public void runHistory(String connectionName, int index) {
+        List<ConnectionDetails.QueryHistory> history = getConnection(connectionName).getHistory();
+        if (index >= 0 && index < history.size()) {
+            execute(connectionName, history.get(index).getQuery(), false);
+        }
+    }
+
+    public void deleteQueryHistory(String connectionName, int index) {
+        // Implementation for deleting the query history by index
+        List<ConnectionDetails.QueryHistory> history = getConnection(connectionName).getHistory();
+        if (index >= 0 && index < history.size()) {
+            history.remove(index);
+        }
+    }
+
     public void execute(String connectionName, String query) {
+        execute(connectionName, query, true);
+    }
+
+    public void execute(String connectionName, String query, boolean includeInHistory) {
         System.out.println("Executing query: " + query);
 
         ArangoDatabase database = getArangoDatabase(getConnection(connectionName));
@@ -129,8 +139,9 @@ public class ConnectionManager {
         docs.forEach(doc -> {
             System.out.println(doc.toString());
         });
-
-        addQueryToHistory(connectionName, query);
+        if (includeInHistory) {
+            addQueryToHistory(connectionName, query);
+        }
     }
 
     static class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {

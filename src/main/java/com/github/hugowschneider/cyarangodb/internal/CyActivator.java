@@ -17,7 +17,7 @@ public class CyActivator extends AbstractCyActivator {
 
 	@Override
 	public void start(BundleContext context) throws Exception {
-		ConnectionManager connectionManager = ConnectionManager.getInstance();
+		ConnectionManager connectionManager = new ConnectionManager();
 		
 		CySwingApplication cySwingApplication = getService(context, CySwingApplication.class);
 

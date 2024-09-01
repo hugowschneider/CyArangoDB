@@ -19,6 +19,9 @@ import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DocumentFilter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
 
@@ -37,6 +40,8 @@ import java.net.URL;
 import java.util.Map;
 
 public class ManageConnectionsDialog extends JDialog {
+    static final Logger LOGGER = LoggerFactory.getLogger(ManageConnectionsDialog.class);
+
     private JTable connectionTable;
     private DefaultTableModel tableModel;
     private JTextField nameField, hostField, portField, usernameField, passwordField, databaseField;
@@ -45,23 +50,14 @@ public class ManageConnectionsDialog extends JDialog {
     private String editedConnectionName = null;
 
     public ManageConnectionsDialog(ConnectionManager connectionManager, Frame parent) {
+
         super(parent, "ArangoDB Connection Manager", true);
         this.connectionManager = connectionManager;
         setLayout(new BorderLayout());
         setModalityType(ModalityType.APPLICATION_MODAL);
         setLocationRelativeTo(parent);
 
-        try {
-            URL iconURL = getClass().getClassLoader().getResource("arangodb_icon.png");
-            if (iconURL != null) {
-                Image icon = ImageIO.read(iconURL);
-                setIconImage(icon);
-            } else {
-                System.err.println("Icon resource not found.");
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        UIUtils.setIconImage(this, "arangodb_icon.png");
 
         // Left Panel
         JPanel leftPanel = new JPanel(new BorderLayout());
@@ -70,6 +66,36 @@ public class ManageConnectionsDialog extends JDialog {
         leftPanel.add(new JScrollPane(connectionTable), BorderLayout.CENTER);
 
         // Right Panel
+        JPanel rightPanel = createRightPanel();
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
+        add(splitPane, BorderLayout.CENTER);
+
+        // Load existing connections
+        loadConnections();
+
+        // Event Handling
+        saveButton.addActionListener(e -> saveConnection());
+        validateButton.addActionListener(e -> validateConnection(false));
+        cancelButton.addActionListener(e -> clearFields());
+
+        connectionTable.getColumn("Edit").setCellRenderer(new ButtonRenderer("Edit"));
+        connectionTable.getColumn("Edit")
+                .setCellEditor(new ButtonEditor(new JCheckBox(), "Edit", e -> editConnection()));
+
+        connectionTable.getColumn("Delete").setCellRenderer(new ButtonRenderer("Delete"));
+        connectionTable.getColumn("Delete")
+                .setCellEditor(new ButtonEditor(new JCheckBox(), "Delete", e -> deleteConnection()));
+
+        connectionTable.getColumn("Validate").setCellRenderer(new ButtonRenderer("Validate"));
+        connectionTable.getColumn("Validate")
+                .setCellEditor(new ButtonEditor(new JCheckBox(), "Validate", e -> validateConnection(true)));
+
+        setSize(1200, 600);
+        setLocationRelativeTo(parent);
+    }
+
+    private JPanel createRightPanel() {
         JPanel rightPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -140,45 +166,7 @@ public class ManageConnectionsDialog extends JDialog {
         gbc.anchor = GridBagConstraints.CENTER;
         rightPanel.add(buttonPanel, gbc);
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
-        add(splitPane, BorderLayout.CENTER);
-
-        // Load existing connections
-        loadConnections();
-
-        // Event Handling
-        saveButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                saveConnection();
-            }
-        });
-
-        validateButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                validateConnection();
-            }
-        });
-
-        cancelButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                clearFields();
-            }
-        });
-
-        connectionTable.getColumn("Edit").setCellRenderer(new ButtonRenderer());
-        connectionTable.getColumn("Edit").setCellEditor(new ButtonEditor(new JCheckBox(), "Edit"));
-
-        connectionTable.getColumn("Delete").setCellRenderer(new ButtonRenderer());
-        connectionTable.getColumn("Delete").setCellEditor(new ButtonEditor(new JCheckBox(), "Delete"));
-
-        connectionTable.getColumn("Validate").setCellRenderer(new ButtonRenderer());
-        connectionTable.getColumn("Validate").setCellEditor(new ButtonEditor(new JCheckBox(), "Validate"));
-
-        setSize(800, 400);
-        setLocationRelativeTo(parent);
+        return rightPanel;
     }
 
     private void loadConnections() {
@@ -226,27 +214,6 @@ public class ManageConnectionsDialog extends JDialog {
         editedConnectionName = null;
     }
 
-    private void validateConnection() {
-        String name = nameField.getText();
-        String host = hostField.getText();
-        int port = Integer.parseInt(portField.getText());
-        String username = usernameField.getText();
-        String password = passwordField.getText();
-        String database = databaseField.getText();
-
-        ConnectionDetails connectionDetails = new ConnectionDetails(host, port, username, password, database);
-
-        boolean isValid;
-        if (editedConnectionName != null && !editedConnectionName.equals(name)) {
-            isValid = connectionManager.validate(connectionDetails);
-        } else {
-            isValid = connectionManager.validate(name);
-        }
-
-        String message = isValid ? "Connection is valid." : "Connection is invalid.";
-        JOptionPane.showMessageDialog(this, message);
-    }
-
     private void clearFields() {
         nameField.setText("");
         hostField.setText("");
@@ -255,6 +222,61 @@ public class ManageConnectionsDialog extends JDialog {
         passwordField.setText("");
         databaseField.setText("");
         editedConnectionName = null;
+    }
+
+    private void editConnection() {
+        int row = connectionTable.getSelectedRow();
+        String name = (String) tableModel.getValueAt(row, 0);
+        ConnectionDetails details = connectionManager.getConnection(name);
+        if (details != null) {
+            nameField.setText(name);
+            hostField.setText(details.getHost());
+            portField.setText(String.valueOf(details.getPort()));
+            usernameField.setText(details.getUser());
+            passwordField.setText(details.getPassword());
+            databaseField.setText(details.getDatabase());
+            editedConnectionName = name;
+        }
+    }
+
+    private void deleteConnection() {
+        int row = connectionTable.getSelectedRow();
+        String name = (String) tableModel.getValueAt(row, 0);
+        connectionManager.removeConnection(name);
+        tableModel.removeRow(row);
+    }
+
+    private void validateConnection(boolean fromTable) {
+        String message;
+        try {
+            boolean isValid;
+            if (fromTable) {
+                int row = connectionTable.getSelectedRow();
+                String name = (String) tableModel.getValueAt(row, 0);
+                isValid = connectionManager.validate(name);
+            } else {
+                String name = nameField.getText();
+                String host = hostField.getText();
+                int port = Integer.parseInt(portField.getText());
+                String username = usernameField.getText();
+                String password = passwordField.getText();
+                String database = databaseField.getText();
+
+                ConnectionDetails connectionDetails = new ConnectionDetails(host, port, username, password, database);
+
+                isValid = connectionManager.validate(connectionDetails);
+
+            }
+            message = isValid ? "Connection is valid." : "Connection is invalid.";
+        } catch (Exception e) {
+            LOGGER.warn("Connection is invalid", e);
+            message = String.format("Connection is invalid: %s", e.getMessage());
+        }
+        showValidationMessage(message);
+    }
+
+    private void showValidationMessage(String message) {
+        JOptionPane.showMessageDialog(this, message);
     }
 
     // Custom DocumentFilter to allow only numeric input
@@ -278,118 +300,6 @@ public class ManageConnectionsDialog extends JDialog {
         @Override
         public void remove(FilterBypass fb, int offset, int length) throws BadLocationException {
             super.remove(fb, offset, length);
-        }
-    }
-
-    // ButtonRenderer class to render buttons in the table
-    class ButtonRenderer extends JButton implements TableCellRenderer {
-        public ButtonRenderer() {
-            setOpaque(true);
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
-                int row, int column) {
-            setText((value == null) ? "" : value.toString());
-            return this;
-        }
-    }
-
-    // ButtonEditor class to handle button clicks in the table
-    class ButtonEditor extends DefaultCellEditor {
-        private String label;
-        private boolean isPushed;
-        private String action;
-        private JButton button;
-
-        public ButtonEditor(JCheckBox checkBox, String action) {
-            super(checkBox);
-            checkBox.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent arg0) {
-                    checkBox.setSelected(false);
-                }
-            });
-            button = new JButton();
-            button.setOpaque(true);
-            button.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent arg0) {
-                    getCellEditorValue();
-                }
-            });
-            this.action = action;
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row,
-                int column) {
-            label = (value == null) ? "" : value.toString();
-            button.setText(label);
-            isPushed = true;
-            return button;
-        }
-
-        @Override
-        public Object getCellEditorValue() {
-            if (isPushed) {
-                int row = connectionTable.getSelectedRow();
-                String name = (String) tableModel.getValueAt(row, 0);
-
-                switch (action) {
-                    case "Edit":
-                        editConnection(name);
-                        break;
-                    case "Delete":
-                        deleteConnection(name, row);
-                        break;
-                    case "Validate":
-                        validateConnection(name);
-                        break;
-                }
-            }
-            isPushed = false;
-            return label;
-        }
-
-        @Override
-        public boolean stopCellEditing() {
-            isPushed = false;
-            return super.stopCellEditing();
-        }
-
-        @Override
-        protected void fireEditingStopped() {
-            super.fireEditingStopped();
-        }
-
-        private void editConnection(String name) {
-            ConnectionDetails details = connectionManager.getConnection(name);
-            if (details != null) {
-                nameField.setText(name);
-                hostField.setText(details.getHost());
-                portField.setText(String.valueOf(details.getPort()));
-                usernameField.setText(details.getUser());
-                passwordField.setText(details.getPassword());
-                databaseField.setText(details.getDatabase());
-                editedConnectionName = name;
-            }
-        }
-
-        private void deleteConnection(String name, int row) {
-            connectionManager.removeConnection(name);
-            tableModel.removeRow(row);
-        }
-
-        private void validateConnection(String name) {
-            try {
-                boolean isValid = connectionManager.validate(name);
-                String message = isValid ? "Connection is valid." : "Connection is invalid.";
-                JOptionPane.showMessageDialog(ManageConnectionsDialog.this, message);
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(ManageConnectionsDialog.this,
-                        String.format("Connection is invalid: $1%s", e.getMessage()));
-            }
         }
     }
 }
