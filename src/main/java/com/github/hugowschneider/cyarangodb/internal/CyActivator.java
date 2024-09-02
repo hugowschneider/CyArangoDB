@@ -5,6 +5,8 @@ import org.cytoscape.application.swing.CySwingApplication;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.service.util.AbstractCyActivator;
+import org.cytoscape.view.model.CyNetworkViewFactory;
+import org.cytoscape.view.model.CyNetworkViewManager;
 import org.osgi.framework.BundleContext;
 
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
@@ -17,16 +19,20 @@ public class CyActivator extends AbstractCyActivator {
 
 	@Override
 	public void start(BundleContext context) throws Exception {
-		ConnectionManager connectionManager = new ConnectionManager();
-		
+
 		CySwingApplication cySwingApplication = getService(context, CySwingApplication.class);
 
 		CyNetworkFactory networkFactory = getService(context, CyNetworkFactory.class);
 		CyNetworkManager networkManager = getService(context, CyNetworkManager.class);
+		CyNetworkViewManager networkViewManager = getService(context, CyNetworkViewManager.class);
+		CyNetworkViewFactory networkViewFactory = getService(context, CyNetworkViewFactory.class);
 		CyApplicationManager applicationManager = getService(context, CyApplicationManager.class);
 
+		ConnectionManager connectionManager = new ConnectionManager(networkFactory, networkManager, networkViewFactory,
+				networkViewManager, applicationManager);
+
 		JFrame cytoscapeMain = cySwingApplication.getJFrame();
-		
+
 		ManageConnectionsAction manageConnectionsAction = new ManageConnectionsAction(connectionManager, cytoscapeMain);
 		ImportNetworkAction importNetworkAction = new ImportNetworkAction(connectionManager, cytoscapeMain);
 

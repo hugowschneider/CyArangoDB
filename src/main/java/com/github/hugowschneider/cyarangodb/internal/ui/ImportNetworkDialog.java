@@ -4,11 +4,11 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.JButton;
@@ -18,16 +18,32 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
+import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+
+import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
+import org.fife.ui.autocomplete.AutoCompletion;
+import org.fife.ui.autocomplete.CompletionProvider;
+import org.fife.ui.rtextarea.RTextScrollPane;
+
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
+import com.github.hugowschneider.cyarangodb.internal.connection.ImportNetworkException;
+import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager.ImportResult;
+import com.github.hugowschneider.cyarangodb.internal.ui.aql.AQLCompletionProvider;
+import com.github.hugowschneider.cyarangodb.internal.flex.AqlTokenMaker;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ImportNetworkDialog extends JDialog {
     private final ConnectionManager connectionManager;
     private final JComboBox<String> connectionDropdown;
-    private final JTextArea queryTextArea;
-    private final JTextArea statusTextArea;
+    private final RSyntaxTextArea queryTextArea;
     private final JTable historyTable;
     private final DefaultTableModel historyTableModel;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImportNetworkDialog.class);
 
     public ImportNetworkDialog(ConnectionManager connectionManager, JFrame parentFrame) {
         super(parentFrame, "Import Network", true);
@@ -36,16 +52,26 @@ public class ImportNetworkDialog extends JDialog {
         // Set dialog properties
         setLayout(new BorderLayout());
         setModalityType(ModalityType.APPLICATION_MODAL);
-        setLocationRelativeTo(parentFrame);
         setSize(1200, 600);
+        setLocationRelativeTo(parentFrame);
 
         // Set icon image
         UIUtils.setIconImage(this, "arangodb_icon.png");
 
         // Initialize components
         connectionDropdown = new JComboBox<>();
-        queryTextArea = new JTextArea(10, 30);
-        statusTextArea = new JTextArea(3, 30);
+
+        TokenMakerFactory factory = TokenMakerFactory.getDefaultInstance();
+        ((AbstractTokenMakerFactory) factory).putMapping("text/aql",
+                AqlTokenMaker.class.getName());
+
+        queryTextArea = new RSyntaxTextArea(10, 30);
+        queryTextArea.setSyntaxEditingStyle("text/aql");
+        queryTextArea.setCodeFoldingEnabled(true);
+        queryTextArea.setEditable(true);
+        queryTextArea.setEnabled(true);
+        setupAutoCompletion(queryTextArea);
+
         historyTableModel = new DefaultTableModel(new Object[] { "Executed At", "Query", "Run", "Copy", "Delete" }, 0);
         historyTable = new JTable(historyTableModel);
 
@@ -73,14 +99,11 @@ public class ImportNetworkDialog extends JDialog {
         // Setup Query tab
         JPanel queryPanel = new JPanel(new BorderLayout());
         queryTextArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        queryPanel.add(new JScrollPane(queryTextArea), BorderLayout.CENTER);
-
-        statusTextArea.setEditable(false);
-        queryPanel.add(new JScrollPane(statusTextArea), BorderLayout.SOUTH);
+        queryPanel.add(new RTextScrollPane(queryTextArea), BorderLayout.CENTER);
 
         JButton executeButton = new JButton("Execute Query");
         executeButton.addActionListener(e -> executeQuery());
-        queryPanel.add(executeButton, BorderLayout.SOUTH);
+        queryPanel.add(executeButton, BorderLayout.PAGE_END);
 
         tabbedPane.addTab("Query", queryPanel);
 
@@ -101,16 +124,37 @@ public class ImportNetworkDialog extends JDialog {
         add(tabbedPane, BorderLayout.CENTER);
     }
 
+    private void setupAutoCompletion(RSyntaxTextArea textArea) {
+        CompletionProvider provider = createCompletionProvider();
+        AutoCompletion ac = new AutoCompletion(provider);
+        ac.install(textArea);
+    }
+
+    private CompletionProvider createCompletionProvider() {
+        // Add SQL keywords for autocompletion
+        String[] keywords = { "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
+                "JOIN" };
+        CompletionProvider provider = new AQLCompletionProvider(keywords);
+
+        return provider;
+    }
+
     private void executeQuery() {
         String query = queryTextArea.getText();
         String connectionName = (String) connectionDropdown.getSelectedItem();
 
         try {
-            connectionManager.execute(connectionName, query);
+            ImportResult result = connectionManager.execute(connectionName, query);
             updateHistoryList();
-            statusTextArea.setText("Query executed successfully.");
+            JOptionPane.showMessageDialog(this,
+                    String.format("Imported %1$d Nodes and %2$d Vertices", result.getVertexCount(),
+                            result.getEdgeCount()));
+            this.dispose();
+        } catch (ImportNetworkException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
         } catch (Exception ex) {
-            statusTextArea.setText("Error executing query: " + ex.getMessage());
+            LOGGER.error(ex.getMessage(), ex);
+            JOptionPane.showMessageDialog(this, "Error executing query: " + ex.getMessage());
         }
     }
 
@@ -129,7 +173,18 @@ public class ImportNetworkDialog extends JDialog {
     private void runHistory() {
         int row = historyTable.getSelectedRow();
         String connectionName = (String) connectionDropdown.getSelectedItem();
-        connectionManager.runHistory(connectionName, row);
+        try {
+            ImportResult result = connectionManager.runHistory(connectionName, row);
+            JOptionPane.showMessageDialog(this,
+                    String.format("Imported %1$d Nodes and %2$d Vertices", result.getVertexCount(),
+                            result.getEdgeCount()));
+            this.dispose();
+
+        } catch (Exception ex) {
+            LOGGER.error(ex.getMessage(), ex);
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+
     }
 
     private void copyQuery() {

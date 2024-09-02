@@ -35,7 +35,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-
+                    <excludes>
+                        <exclude>target/generated-sources/**/*</exclude>
+                    </excludes>
                     <encoding>UTF-8</encoding>
                     <source>11</source>
                     <target>11</target>
@@ -61,7 +63,7 @@
                         <Private-Package>${bundle.namespace}.internal.*</Private-Package>
                         <Bundle-Activator>${bundle.namespace}.internal.CyActivator</Bundle-Activator>
                         <Export-Package>
-                            com.google.gson.*,com.arangodb.*,io.netty.*,com.fasterxml.jackson.*,io.vertx.*</Export-Package>
+                            com.google.gson.*,com.arangodb.*,io.netty.*,com.fasterxml.jackson.*,io.vertx.*,org.fife.*</Export-Package>
                         <Import-Package>
                             org.cytoscape.*,
                             javax.*,
@@ -71,6 +73,14 @@
                         <SPI-Provider>*</SPI-Provider>
                         <SPI-Consumer>*</SPI-Consumer>
                     </instructions>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.0.0</version>
+                <configuration>
+                    <mainClass>com.github.hugowschneider.cyarangodb.internal.Main</mainClass>
                 </configuration>
             </plugin>
         </plugins>
@@ -98,6 +108,7 @@
             <name>Cytoscape Releases</name>
             <url>https://nrnb-nexus.ucsd.edu/repository/cytoscape_releases/</url>
         </repository>
+
     </repositories>
 
     <dependencies>
@@ -176,10 +187,10 @@
             <version>7.7.1</version>
         </dependency>
         <dependency>
-        <groupId>com.arangodb</groupId>
-        <artifactId>jackson-serde-json</artifactId>
-        <version>7.7.1</version>
-    </dependency>
+            <groupId>com.arangodb</groupId>
+            <artifactId>jackson-serde-json</artifactId>
+            <version>7.7.1</version>
+        </dependency>
 
         <!-- JSON -->
 
@@ -188,6 +199,20 @@
             <artifactId>gson</artifactId>
             <version>2.11.0</version>
         </dependency>
+
+        <!-- Syntax Support UI Components -->
+        <dependency>
+            <groupId>com.fifesoft</groupId>
+            <artifactId>rsyntaxtextarea</artifactId>
+            <version>3.5.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fifesoft</groupId>
+            <artifactId>autocomplete</artifactId>
+            <version>3.3.1</version>
+        </dependency>
+
+
         <!-- <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

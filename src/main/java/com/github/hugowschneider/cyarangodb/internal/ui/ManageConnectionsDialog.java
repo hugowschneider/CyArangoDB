@@ -1,7 +1,5 @@
 package com.github.hugowschneider.cyarangodb.internal.ui;
 
-import javax.imageio.ImageIO;
-import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
@@ -13,7 +11,6 @@ import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
@@ -26,17 +23,11 @@ import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetail
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Image;
 import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.IOException;
-import java.net.URL;
 import java.util.Map;
 
 public class ManageConnectionsDialog extends JDialog {
@@ -255,7 +246,7 @@ public class ManageConnectionsDialog extends JDialog {
                 String name = (String) tableModel.getValueAt(row, 0);
                 isValid = connectionManager.validate(name);
             } else {
-                String name = nameField.getText();
+
                 String host = hostField.getText();
                 int port = Integer.parseInt(portField.getText());
                 String username = usernameField.getText();
