@@ -11,9 +11,11 @@ public class ManageConnectionsAction extends AbstractCyAction {
     private ConnectionManager connectionManager;
     private JFrame mainFrame;
 
-    public ManageConnectionsAction(ConnectionManager connectionManager, JFrame mainFrame) {
+    public ManageConnectionsAction(ConnectionManager connectionManager,
+            JFrame mainFrame) {
         super("Manage Connections");
         this.mainFrame = mainFrame;
+
         this.connectionManager = connectionManager;
         setPreferredMenu("Apps.ArangoDB");
     }

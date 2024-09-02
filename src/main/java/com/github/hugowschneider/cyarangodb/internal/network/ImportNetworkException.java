@@ -1,4 +1,4 @@
-package com.github.hugowschneider.cyarangodb.internal.connection;
+package com.github.hugowschneider.cyarangodb.internal.network;
 
 public class ImportNetworkException extends Exception {
     public ImportNetworkException(String message) {
