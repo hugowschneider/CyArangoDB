@@ -158,6 +158,11 @@
             <artifactId>core-task-api</artifactId>
             <version>${cytoscape.api.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.cytoscape</groupId>
+            <artifactId>layout-api</artifactId>
+            <version>${cytoscape.api.version}</version>
+        </dependency>
 
         <!-- OSGi core API -->
         <dependency>

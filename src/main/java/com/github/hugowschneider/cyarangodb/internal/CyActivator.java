@@ -7,6 +7,7 @@ import static org.cytoscape.work.ServiceProperties.TITLE;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.application.swing.CySwingApplication;
+import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.service.util.AbstractCyActivator;
@@ -14,6 +15,7 @@ import org.cytoscape.service.util.CyServiceRegistrar;
 import org.cytoscape.task.NodeViewTaskFactory;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.work.TaskManager;
 import org.osgi.framework.BundleContext;
 
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
@@ -37,10 +39,12 @@ public class CyActivator extends AbstractCyActivator {
 		CyNetworkViewFactory cyNetworkViewFactory = getService(context, CyNetworkViewFactory.class);
 		CyApplicationManager cyApplicationManager = getService(context, CyApplicationManager.class);
 		CyServiceRegistrar cyServiceRegistrar = getService(context, CyServiceRegistrar.class);
+		CyLayoutAlgorithmManager cyLayoutAlgorithmManager = getService(context, CyLayoutAlgorithmManager.class);
+		TaskManager<?, ?> taskManager = getService(context, TaskManager.class);
 
 		ConnectionManager connectionManager = new ConnectionManager();
 		NetworkManager networkManager = new NetworkManager(cyNetworkFactory, cyNetworkManager, cyNetworkViewFactory,
-				cyNetworkViewManager, cyApplicationManager);
+				cyNetworkViewManager, cyApplicationManager, cyLayoutAlgorithmManager, taskManager);
 
 		// Manu actions
 

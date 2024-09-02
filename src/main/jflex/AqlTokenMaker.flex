@@ -11,6 +11,7 @@ import org.fife.ui.rsyntaxtextarea.*;
 %class AqlTokenMaker
 %extends AbstractJFlexTokenMaker
 %unicode
+%ignorecase
 %type org.fife.ui.rsyntaxtextarea.Token
 
 %{
@@ -153,10 +154,13 @@ import org.fife.ui.rsyntaxtextarea.*;
    "/*" { yybegin(COMMENT); }
 
    /* Separators and operators */
-   [.,;(){}[]] { addToken(Token.SEPARATOR); }
+   [.,;\(\)\{\}\[\]=] { addToken(Token.SEPARATOR); }
 
    /* Whitespace */
    [ \t\n\r]+ { addToken(Token.WHITESPACE); }
+
+   /* Catch-all rule to accept any character */
+   . { addToken(Token.ERROR_CHAR); }
 }
 
 <DOUBLE_QUOTED_STRING> {

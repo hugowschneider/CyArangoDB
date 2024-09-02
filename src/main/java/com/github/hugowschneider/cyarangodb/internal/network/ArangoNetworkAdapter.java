@@ -18,7 +18,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.stream.Collectors;
 import java.util.Map;
+import java.util.Set;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -29,6 +31,7 @@ public class ArangoNetworkAdapter {
     private Map<String, CyNode> nodes;
     private ObjectMapper mapper;
     private Map<String, List<String>> edges;
+    private CyNetwork network;
 
     public ArangoNetworkAdapter(ArangoDatabase database, CyNetworkFactory networkFactory) {
         this.mapper = new ObjectMapper();
@@ -75,7 +78,7 @@ public class ArangoNetworkAdapter {
             return nodes.get(id);
         } else {
             CyNode node = network.addNode();
-            
+
             BaseDocument doc = this.loadedNodes.get(id);
             String collection = id.split("/")[0];
 
@@ -102,6 +105,13 @@ public class ArangoNetworkAdapter {
 
     public CyNetwork adaptEdges(List<RawJson> docs) {
 
+        List<BaseEdgeDocument> edges = jsonToEdges(docs);
+
+        return adapt(edges);
+
+    }
+
+    private List<BaseEdgeDocument> jsonToEdges(List<RawJson> docs) {
         List<BaseEdgeDocument> edges = docs.stream().map(doc -> {
             try {
                 return mapper.readValue(doc.get(), BaseEdgeDocument.class);
@@ -109,15 +119,31 @@ public class ArangoNetworkAdapter {
                 throw new RuntimeException("Failed to parse document", e);
             }
         }).collect(Collectors.toList());
+        return edges;
+    }
 
-        return adapt(edges);
+    private static class Path {
+        private List<BaseEdgeDocument> edges;
+        private List<BaseDocument> nodes;
+
+        public Path() {
+            this.edges = new ArrayList<>();
+            this.nodes = new ArrayList<>();
+        }
+
+        public List<BaseEdgeDocument> getEdges() {
+            return edges;
+        }
+
+        public List<BaseDocument> getNodes() {
+            return nodes;
+        }
 
     }
 
-    public CyNetwork adaptPaths(List<RawJson> docs) {
-        List<BaseEdgeDocument> allEdges = new ArrayList<>();
-        List<BaseDocument> allVertices = new ArrayList<>();
-        System.out.println(String.format("Adapt Paths with %1$d paths", docs.size()));
+    private Path jsonToPath(List<RawJson> docs) {
+        Path path = new Path();
+
         docs.forEach(doc -> {
 
             try {
@@ -133,28 +159,32 @@ public class ArangoNetworkAdapter {
                         edgesNode.toString(),
                         new TypeReference<List<BaseEdgeDocument>>() {
                         });
-                allEdges.addAll(edges);
+                path.getEdges().addAll(edges);
 
                 // Deserialize vertices
                 List<BaseDocument> vertices = mapper.readValue(
                         verticesNode.toString(),
                         new TypeReference<List<BaseDocument>>() {
                         });
-                allVertices.addAll(vertices);
+                path.getNodes().addAll(vertices);
 
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
+        return path;
+    }
 
-        allVertices.forEach((vertex) -> {
+    public CyNetwork adaptPaths(List<RawJson> docs) {
+        Path path = jsonToPath(docs);
+        path.getNodes().forEach((vertex) -> {
             loadedNodes.put(vertex.getId(), vertex);
         });
-        return adapt(allEdges);
+        return adapt(path.getEdges());
     }
 
     private CyNetwork adapt(Iterable<BaseEdgeDocument> edges) {
-        CyNetwork network = networkFactory.createNetwork();
+        network = networkFactory.createNetwork();
         CyTable cyNodeTable = network.getDefaultNodeTable();
         CyTable cyEdgeTable = network.getDefaultEdgeTable();
 
@@ -170,6 +200,10 @@ public class ArangoNetworkAdapter {
         cyEdgeTable.createColumn("From", String.class, true);
         cyEdgeTable.createColumn("Data", String.class, true);
         cyEdgeTable.createColumn("Revision", String.class, true);
+
+        this.loadedNodes.values().forEach((doc) -> {
+            getOrCreateCyNode(doc.getId(), network);
+        });
 
         edges.forEach((edge) -> {
 
@@ -205,5 +239,71 @@ public class ArangoNetworkAdapter {
         });
 
         return network;
+    }
+
+    public List<CyNode> expandWithPath(List<RawJson> docs, String nodeId) {
+        Path path = jsonToPath(docs);
+        path.getNodes().forEach((vertex) -> {
+            if (!loadedNodes.containsKey(vertex.getId())) {
+                loadedNodes.put(vertex.getId(), vertex);
+            }
+        });
+        return expand(path.getEdges(), nodeId);
+    }
+
+    public List<CyNode> expandWithEdges(List<RawJson> docs, String nodeId) {
+        List<BaseEdgeDocument> edges = jsonToEdges(docs);
+        return expand(edges, nodeId);
+    }
+
+    private List<CyNode> expand(List<BaseEdgeDocument> edges, String nodeId) {
+        List<CyNode> newNodes = new ArrayList<>();
+        newNodes.add(nodes.get(nodeId));
+        this.loadedNodes.values().forEach((doc) -> {
+            getOrCreateCyNode(doc.getId(), network);
+        });
+        CyTable cyEdgeTable = network.getDefaultEdgeTable();
+        edges.forEach((edge) -> {
+
+            if (this.edges.get(edge.getFrom()) == null) {
+                this.edges.put(edge.getFrom(), new ArrayList<>());
+            }
+            if (this.edges.get(edge.getFrom()).contains(edge.getTo())) {
+                return;
+            }
+            this.edges.get(edge.getFrom()).add(edge.getTo());
+
+            BaseDocument to = getOrRetriveNode(edge.getTo());
+            BaseDocument from = getOrRetriveNode(edge.getFrom());
+            boolean addTo = nodes.get(to.getId()) != null;
+            boolean addFrom = nodes.get(from.getId()) != null;
+
+            CyNode toNode = getOrCreateCyNode(to.getId(), network);
+            CyNode fromNode = getOrCreateCyNode(from.getId(), network);
+            if (addTo) {
+                newNodes.add(toNode);
+            }
+            if (addFrom) {
+                newNodes.add(fromNode);
+            }
+
+            CyEdge cyEdge = network.addEdge(toNode, fromNode, true);
+            String collection = edge.getId().split("/")[0];
+            CyRow row = cyEdgeTable.getRow(cyEdge.getSUID());
+            row.set("name", String.format("%1$s (%2$s)", getName(edge), collection));
+            row.set("Id", edge.getId());
+            row.set("Collection", collection);
+            row.set("To", edge.getTo());
+            row.set("From", edge.getFrom());
+            try {
+                row.set("Data", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(edge));
+            } catch (JsonProcessingException e) {
+                row.set("Data", String.format("Error reading edge Data: %1$s", e.getMessage()));
+            }
+            row.set("Revision", edge.getRevision());
+
+        });
+
+        return newNodes;
     }
 }

@@ -74,4 +74,42 @@ public class QueryResultValidator {
         }
         return isPath = false;
     }
+
+    public boolean isNodeEdgePresent(String id) {
+        if (this.isEdgeList()) {
+            for (RawJson doc : docs) {
+                Map<String, Object> jsonMap = gson.fromJson(doc.get(), new TypeToken<Map<String, Object>>() {
+                }.getType());
+                if (jsonMap.get("_from").equals(id) || jsonMap.get("_to").equals(id)) {
+                    return true;
+                }
+            }
+        } else if (this.isPathList()) {
+            for (RawJson doc : docs) {
+                Map<String, Object> jsonMap = gson.fromJson(doc.get(), new TypeToken<Map<String, Object>>() {
+                }.getType());
+                if (jsonMap.containsKey("vertices") && jsonMap.containsKey("edges")) {
+                    Object edgesObj = jsonMap.get("edges");
+                    Object verticesObj = jsonMap.get("vertices");
+
+                    if (edgesObj instanceof List && verticesObj instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> edges = (List<Map<String, Object>>) edgesObj;
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> vertices = (List<Map<String, Object>>) verticesObj;
+                        if (!edges.isEmpty()) {
+                            for (Map<String, Object> edge : edges) {
+                                if (edge.get("_from").equals(id) || edge.get("_to").equals(id)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+
+    }
 }
