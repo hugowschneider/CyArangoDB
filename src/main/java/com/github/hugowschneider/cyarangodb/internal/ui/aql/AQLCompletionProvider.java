@@ -15,13 +15,11 @@ import org.fife.ui.autocomplete.ParameterizedCompletion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.arangodb.ArangoDatabase;
+
 public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AQLCompletionProvider.class);
-
-	private final Segment segment;
-	private String cachedCompletionsText;
-	private List<Completion> cachedParameterizedCompletions;
 
 	private static final String[] AQL_KEYWORDS = {
 			"FOR", "IN", "RETURN", "LET", "FILTER", "SORT", "LIMIT", "COLLECT",
@@ -34,7 +32,6 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			"GRAPH_NEIGHBORS", "GRAPH_TRAVERSAL", "GRAPH_SHORTEST_PATH", "GRAPH_K_SHORTEST_PATHS",
 			"GRAPH_K_PATHS", "GRAPH_ALL_SHORTEST_PATHS", "GRAPH_ALL_PATHS", "GRAPH_ANY_PATH"
 	};
-
 	private static final String[] AQL_FUNCTIONS = {
 			"LENGTH", "COUNT", "SUM", "MIN", "MAX", "AVERAGE", "CONCAT", "SUBSTRING",
 			"CONTAINS", "UPPER", "LOWER", "LIKE", "RANDOM_TOKEN",
@@ -50,17 +47,30 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			"DATE_TIMEZONE_DST_ABBREVIATION", "DATE_TIMEZONE_DST_START", "DATE_TIMEZONE_DST_END",
 			"DATE_TIMEZONE_DST_NEXT", "DATE_TIMEZONE_DST_PREVIOUS", "DATE_TIMEZONE_DST_ISDST"
 	};
+	private final Segment segment;
+
+	private String cachedCompletionsText;
+
+	private List<Completion> cachedParameterizedCompletions;
+
+	private ArangoDatabase database;
 
 	public AQLCompletionProvider() {
 		this(null);
 	}
 
-	public AQLCompletionProvider(String[] customWords) {
+	public AQLCompletionProvider(ArangoDatabase database) {
 		this.segment = new Segment();
 		initializeAQLCompletions();
-		if (customWords != null) {
-			addWordCompletions(customWords);
-		}
+		this.database = database;
+	}
+
+	public ArangoDatabase getDatabase() {
+		return database;
+	}
+
+	public void setDatabase(ArangoDatabase database) {
+		this.database = database;
 	}
 
 	@Override
@@ -133,6 +143,10 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		}
 
 		return null;
+	}
+
+	protected boolean isValidChar(char ch) {
+		return Character.isLetterOrDigit(ch) || ch == '_';
 	}
 
 	private void resetCachedCompletions() {
@@ -215,10 +229,6 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			validTextEnd++;
 		}
 		return validTextEnd;
-	}
-
-	protected boolean isValidChar(char ch) {
-		return Character.isLetterOrDigit(ch) || ch == '_';
 	}
 
 	private void initializeAQLCompletions() {

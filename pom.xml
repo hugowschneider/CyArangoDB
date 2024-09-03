@@ -69,6 +69,8 @@
                             javax.*,
                             org.osgi.*,
                             org.slf4j.*,
+                            org.w3c.*,
+                            org.xml.*,
                         </Import-Package>
                         <SPI-Provider>*</SPI-Provider>
                         <SPI-Consumer>*</SPI-Consumer>

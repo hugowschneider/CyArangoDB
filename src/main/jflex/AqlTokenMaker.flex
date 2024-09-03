@@ -102,14 +102,14 @@ import org.fife.ui.rsyntaxtextarea.*;
    }   
 %}
 
-%state STRING, COMMENT, DOUBLE_QUOTED_STRING, SINGLE_QUOTED_STRING
+%state STRING, COMMENT, DOUBLE_QUOTED_STRING, SINGLE_QUOTED_STRING, VARIABLE_DECLARATION, LET, FOR, COLLECT
 
 %%
 
 <YYINITIAL> {
    /* Keywords */
-   "FOR" | "RETURN" | "FILTER" | "LIMIT" | "SORT" | "COLLECT" | "INSERT" |
-   "REMOVE" | "UPSERT" | "REPLACE" | "LET" | "DISTINCT" | "IN" | "PRUNE" | "INTO" |
+   "RETURN" | "FILTER" | "LIMIT" | "SORT" | "INSERT" | "GRAPH" |
+   "REMOVE" | "UPSERT" | "REPLACE" |  "DISTINCT" | "IN" | "PRUNE" | "INTO" |
    "INBOUND" | "OUTBOUND" | "ANY" | "ALL" | "NONE" | "AND" | "OR" | "NOT" |
    "WITH" | "COUNT" | "AGGREGATE" | "KEEP" { addToken(Token.RESERVED_WORD); }
 
@@ -135,15 +135,18 @@ import org.fife.ui.rsyntaxtextarea.*;
    "UPDATE" | "KEEP" | "ZIP" { addToken(Token.FUNCTION); }
 
    /* Variable Definitions */
-   "LET" { addToken(Token.RESERVED_WORD); }
-   "COLLECT" { addToken(Token.RESERVED_WORD); }
-   "FOR" { addToken(Token.RESERVED_WORD); }
+   "LET" { addToken(Token.RESERVED_WORD); yybegin(LET); }
+   "COLLECT" { addToken(Token.RESERVED_WORD); yybegin(COLLECT); }
+   "FOR" { addToken(Token.RESERVED_WORD); yybegin(FOR); }
 
    /* Identifiers */
    [^\W\d]([\w-]*[\w])? { addToken(Token.IDENTIFIER); }
 
    /* Numbers */
    [0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)? { addToken(Token.LITERAL_NUMBER_FLOAT); }
+
+   /* Ranges */
+   [0-9]+(\.[0-9]*)?\.\.[0-9]+(\.[0-9]*)? { addToken(Token.PREPROCESSOR); }
 
    /* Strings and Comments */
    "\"" { addToken(Token.LITERAL_STRING_DOUBLE_QUOTE); yybegin(DOUBLE_QUOTED_STRING); }
@@ -161,6 +164,39 @@ import org.fife.ui.rsyntaxtextarea.*;
 
    /* Catch-all rule to accept any character */
    . { addToken(Token.ERROR_CHAR); }
+}
+
+<LET> {
+   [^\W\d]([\w]*[\w])? { addToken(Token.VARIABLE); }
+   "`" [^`]+ "`" { addToken(Token.VARIABLE); }
+   "=" { addToken(Token.SEPARATOR); yybegin(YYINITIAL); }
+   [ \t\n\r]+ { addToken(Token.WHITESPACE); }
+   . { addToken(Token.ERROR_CHAR); yybegin(YYINITIAL); }
+}
+
+<FOR> {
+   "IN" { addToken(Token.RESERVED_WORD); yybegin(YYINITIAL); }   
+   [^\W\d]([\w]*[\w])? { addToken(Token.VARIABLE); }
+   "`" [^`]+ "`" { addToken(Token.VARIABLE); }
+   "," { addToken(Token.SEPARATOR); }
+   [ \t\n\r]+ { addToken(Token.WHITESPACE); }
+   . { addToken(Token.ERROR_CHAR); yybegin(YYINITIAL); }
+}
+
+<COLLECT> {
+   "INTO" | "KEEP" | "WITH" | "COUNT" | "AGGREGATE" { addToken(Token.RESERVED_WORD); }
+   [^\W\d]([\w]*[\w])? { addToken(Token.VARIABLE); }
+   "`" [^`]+ "`" { addToken(Token.VARIABLE); }
+   "=" { addToken(Token.SEPARATOR); }
+   [ \t]+ { addToken(Token.WHITESPACE); }
+   [\n\r]+ { addToken(Token.WHITESPACE); yybegin(YYINITIAL); }
+   . { addToken(Token.ERROR_CHAR); yybegin(YYINITIAL); }
+}
+
+<VARIABLE_DECLARATION> {
+   [^\W\d]([\w-]*[\w])? { addToken(Token.VARIABLE); yybegin(YYINITIAL); }
+   "=" { addToken(Token.SEPARATOR); yybegin(YYINITIAL); }
+   [ \t\n\r]+ { addToken(Token.WHITESPACE); }
 }
 
 <DOUBLE_QUOTED_STRING> {

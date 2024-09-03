@@ -15,15 +15,22 @@ import javax.swing.JTabbedPane;
 import javax.swing.JScrollPane;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
 import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
+import org.fife.ui.rsyntaxtextarea.Theme;
+import org.fife.ui.rsyntaxtextarea.Token;
 import org.fife.ui.rtextarea.RTextScrollPane;
 import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
 import org.fife.ui.autocomplete.AutoCompletion;
@@ -46,6 +53,7 @@ public abstract class BaseNetworkDialog extends JDialog {
     protected final RSyntaxTextArea queryTextArea;
     protected final JTable historyTable;
     protected final DefaultTableModel historyTableModel;
+    private AQLCompletionProvider completionProvider;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseNetworkDialog.class);
 
@@ -64,9 +72,22 @@ public abstract class BaseNetworkDialog extends JDialog {
 
         // Initialize components
         connectionDropdown = new JComboBox<>();
-        for (String connectionName : connectionManager.getAllConnections().keySet()) {
-            connectionDropdown.addItem(connectionName);
+        if (connectionManager.getAllConnections().isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "Please configure a valid connection before trying to import a network or expand a node.",
+                    "No Connections", JOptionPane.WARNING_MESSAGE);
+            this.dispose();
+        } else {
+            for (String connectionName : connectionManager.getAllConnections().keySet()) {
+                connectionDropdown.addItem(connectionName);
+            }
+            connectionDropdown.addActionListener(e -> {
+                String connectionName = (String) connectionDropdown.getSelectedItem();
+                updateHistoryList();
+                this.completionProvider.setDatabase(connectionManager.getArangoDatabase(connectionName));
+            });
         }
+
         connectionDropdown.addActionListener(e -> updateHistoryList());
 
         TokenMakerFactory factory = TokenMakerFactory.getDefaultInstance();
@@ -74,9 +95,11 @@ public abstract class BaseNetworkDialog extends JDialog {
 
         queryTextArea = new RSyntaxTextArea(10, 30);
         queryTextArea.setSyntaxEditingStyle("text/aql");
-        queryTextArea.setCodeFoldingEnabled(true);
+        queryTextArea.setCodeFoldingEnabled(false);
+        queryTextArea.setAntiAliasingEnabled(true);
         queryTextArea.setEditable(true);
         queryTextArea.setEnabled(true);
+        setupCodeStyles(queryTextArea);
         setupAutoCompletion(queryTextArea);
 
         RTextScrollPane scrollPane = new RTextScrollPane(queryTextArea);
@@ -130,6 +153,23 @@ public abstract class BaseNetworkDialog extends JDialog {
 
         // Initialize the history list with existing history
         updateHistoryList();
+        // Initialize the completion provider with the first connection
+        this.completionProvider
+                .setDatabase(connectionManager.getArangoDatabase((String) connectionDropdown.getSelectedItem()));
+    }
+
+    private void setupCodeStyles(RSyntaxTextArea queryTextArea2) {
+        Theme theme;
+        try {
+            URL themeURL = getClass().getClassLoader().getResource("theme.xml");
+            InputStream in = themeURL.openStream();
+            theme = Theme.load(in);
+            in.close();
+            theme.apply(queryTextArea);
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
+
     }
 
     protected abstract Component renderTopComponent();
@@ -141,18 +181,11 @@ public abstract class BaseNetworkDialog extends JDialog {
     }
 
     protected void setupAutoCompletion(RSyntaxTextArea textArea) {
-        CompletionProvider provider = createCompletionProvider();
-        AutoCompletion ac = new AutoCompletion(provider);
+        this.completionProvider = new AQLCompletionProvider(null);
+
+        AutoCompletion ac = new AutoCompletion(completionProvider);
+
         ac.install(textArea);
-    }
-
-    protected CompletionProvider createCompletionProvider() {
-        // Add SQL keywords for autocompletion
-        String[] keywords = { "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-                "JOIN" };
-        CompletionProvider provider = new AQLCompletionProvider(keywords);
-
-        return provider;
     }
 
     protected abstract void processQueryResult(List<RawJson> docs, ArangoDatabase database, String query)
