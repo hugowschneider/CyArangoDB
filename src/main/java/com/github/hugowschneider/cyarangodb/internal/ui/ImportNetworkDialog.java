@@ -1,23 +1,18 @@
 package com.github.hugowschneider.cyarangodb.internal.ui;
 
-import javax.swing.JCheckBox;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
-import javax.swing.ListSelectionModel;
-import javax.swing.JButton;
-import java.awt.BorderLayout;
-import java.awt.Font;
+import java.awt.Component;
+import java.awt.FlowLayout;
 import java.util.List;
 
-import org.fife.ui.rtextarea.RTextScrollPane;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
-import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkAdapter;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkImportResult;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
@@ -25,52 +20,55 @@ import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
 public class ImportNetworkDialog extends BaseNetworkDialog {
 
     private NetworkManager networkManager;
+    private JTextField networkNameField;
 
     public ImportNetworkDialog(ConnectionManager connectionManager, NetworkManager networkManager, JFrame parentFrame) {
         super(connectionManager, parentFrame, "Import Network");
         this.networkManager = networkManager;
+
+        this.networkNameField.setText(suggestNetworkName());
     }
 
-    @Override
-    protected void setupTabbedPane() {
-        JTabbedPane tabbedPane = new JTabbedPane();
+    private String suggestNetworkName() {
+        List<String> existingNames = networkManager.getAllNetworkNames();
+        String baseName = "ArangoNetwork";
+        String suggestedName = baseName;
+        int counter = 1;
 
-        // Setup Query tab
-        JPanel queryPanel = new JPanel(new BorderLayout());
-        queryTextArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-        queryPanel.add(new RTextScrollPane(queryTextArea), BorderLayout.CENTER);
+        while (existingNames.contains(suggestedName)) {
+            suggestedName = baseName + "_" + counter;
+            counter++;
+        }
 
-        JButton executeButton = new JButton("Execute Query");
-        executeButton.addActionListener(e -> executeQuery());
-        queryPanel.add(executeButton, BorderLayout.PAGE_END);
-
-        tabbedPane.addTab("Query", queryPanel);
-
-        // Setup History tab
-        JPanel historyPanel = new JPanel(new BorderLayout());
-        historyTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        historyTable.getColumn("Run").setCellRenderer(new ButtonRenderer("Run"));
-        historyTable.getColumn("Run").setCellEditor(new ButtonEditor(new JCheckBox(), "Run", e -> runHistory()));
-        historyTable.getColumn("Copy").setCellRenderer(new ButtonRenderer("Copy"));
-        historyTable.getColumn("Copy").setCellEditor(new ButtonEditor(new JCheckBox(), "Copy", e -> copyQuery()));
-        historyTable.getColumn("Delete").setCellRenderer(new ButtonRenderer("Delete"));
-        historyTable.getColumn("Delete")
-                .setCellEditor(new ButtonEditor(new JCheckBox(), "Delete", e -> deleteHistory()));
-        historyPanel.add(new JScrollPane(historyTable), BorderLayout.CENTER);
-
-        tabbedPane.addTab("History", historyPanel);
-
-        add(tabbedPane, BorderLayout.CENTER);
+        return suggestedName;
     }
 
     @Override
     protected void processQueryResult(List<RawJson> docs, ArangoDatabase database, String query)
             throws ImportNetworkException {
 
-        NetworkImportResult result = networkManager.importNetwork(docs, database, query);
+        NetworkImportResult result = networkManager.importNetwork(docs, database, networkNameField.getText().trim(),
+                query);
         JOptionPane.showMessageDialog(this,
                 String.format("Network imported with %1$d nodes and %2$d edges", result.getNodeCount(),
                         result.getEdgeCount()));
 
+    }
+
+    @Override
+    protected Component renderTopComponent() {
+        JLabel networkNameLabel = new JLabel("Network Name:");
+        JPanel networkNamePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        this.networkNameField = new JTextField(20);
+        networkNamePanel.add(networkNameLabel);
+        networkNamePanel.add(networkNameField);
+
+        return networkNamePanel;
+    }
+
+    @Override
+    protected Component renderCenterComponent() {
+        return null;
     }
 }

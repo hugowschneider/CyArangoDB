@@ -85,16 +85,18 @@ public class ArangoNetworkAdapter {
             nodes.put(id, node);
 
             CyTable table = network.getDefaultNodeTable();
-            table.getRow(node.getSUID()).set("Id", doc.getId());
-            table.getRow(node.getSUID()).set("Collection", collection);
-            table.getRow(node.getSUID()).set("Key", doc.getKey());
-            table.getRow(node.getSUID()).set("Revision", doc.getRevision());
-            table.getRow(node.getSUID()).set("name", String.format("%1$s (%2$s)", getName(doc), collection));
+            CyRow row = table.getRow(node.getSUID());
+            row.set("Id", doc.getId());
+            row.set("Collection", collection);
+            row.set("Key", doc.getKey());
+            row.set("Revision", doc.getRevision());
+            row.set("name", String.format("%1$s (%2$s)", getName(doc), collection));
+            row.set("Color", ArangoNetworkStyle.computeColorIndex(collection));
             try {
-                table.getRow(node.getSUID()).set("Data",
+                row.set("Data",
                         mapper.writerWithDefaultPrettyPrinter().writeValueAsString(doc));
             } catch (JsonProcessingException e) {
-                table.getRow(node.getSUID()).set("Data",
+                row.set("Data",
                         String.format("Error reading node Data: %1$s", e.getMessage()));
             }
 
@@ -193,6 +195,7 @@ public class ArangoNetworkAdapter {
         cyNodeTable.createColumn("Key", String.class, true);
         cyNodeTable.createColumn("Data", String.class, true);
         cyNodeTable.createColumn("Revision", String.class, true);
+        cyNodeTable.createColumn("Color", Integer.class, true);
 
         cyEdgeTable.createColumn("Id", String.class, true);
         cyEdgeTable.createColumn("Collection", String.class, true);
@@ -200,6 +203,7 @@ public class ArangoNetworkAdapter {
         cyEdgeTable.createColumn("From", String.class, true);
         cyEdgeTable.createColumn("Data", String.class, true);
         cyEdgeTable.createColumn("Revision", String.class, true);
+        cyEdgeTable.createColumn("Color", Integer.class, true);
 
         this.loadedNodes.values().forEach((doc) -> {
             getOrCreateCyNode(doc.getId(), network);
@@ -235,6 +239,7 @@ public class ArangoNetworkAdapter {
                 row.set("Data", String.format("Error reading edge Data: %1$s", e.getMessage()));
             }
             row.set("Revision", edge.getRevision());
+            row.set("Color", ArangoNetworkStyle.computeColorIndex(collection));
 
         });
 

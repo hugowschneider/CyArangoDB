@@ -15,10 +15,14 @@ import org.cytoscape.service.util.CyServiceRegistrar;
 import org.cytoscape.task.NodeViewTaskFactory;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
+import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
+import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyleFactory;
 import org.cytoscape.work.TaskManager;
 import org.osgi.framework.BundleContext;
 
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkStyle;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
 import com.github.hugowschneider.cyarangodb.internal.task.ExpandNodeContextMenuFactory;
 import com.github.hugowschneider.cyarangodb.internal.ui.ImportNetworkAction;
@@ -42,9 +46,26 @@ public class CyActivator extends AbstractCyActivator {
 		CyLayoutAlgorithmManager cyLayoutAlgorithmManager = getService(context, CyLayoutAlgorithmManager.class);
 		TaskManager<?, ?> taskManager = getService(context, TaskManager.class);
 
+		VisualMappingManager visualMappingManager = getService(context, VisualMappingManager.class);
+
+		VisualStyleFactory visualStyleFactory = getService(context, VisualStyleFactory.class);
+
+		VisualMappingFunctionFactory mappingFunctionFactoryContinues = getService(context,
+				VisualMappingFunctionFactory.class,
+				"(mapping.type=continuous)");
+		VisualMappingFunctionFactory mappingFunctionFactoryDiscrete = getService(context,
+				VisualMappingFunctionFactory.class,
+				"(mapping.type=discrete)");
+		VisualMappingFunctionFactory mappingFunctionPassthorugh = getService(context,
+				VisualMappingFunctionFactory.class,
+				"(mapping.type=passthrough)");
+
 		ConnectionManager connectionManager = new ConnectionManager();
+		ArangoNetworkStyle arangoNetworkStyle = new ArangoNetworkStyle(visualMappingManager, visualStyleFactory,
+				mappingFunctionFactoryContinues, mappingFunctionFactoryDiscrete, mappingFunctionPassthorugh);
+
 		NetworkManager networkManager = new NetworkManager(cyNetworkFactory, cyNetworkManager, cyNetworkViewFactory,
-				cyNetworkViewManager, cyApplicationManager, cyLayoutAlgorithmManager, taskManager);
+				cyNetworkViewManager, cyApplicationManager, cyLayoutAlgorithmManager, taskManager, arangoNetworkStyle);
 
 		// Manu actions
 

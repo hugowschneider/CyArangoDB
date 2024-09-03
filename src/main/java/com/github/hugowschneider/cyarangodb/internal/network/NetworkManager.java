@@ -36,11 +36,12 @@ public class NetworkManager {
     private CyLayoutAlgorithmManager layoutAlgorithmManager;
     private Map<String, NetworkContext> networks;
     private TaskManager<?, ?> taskManager;
+    private ArangoNetworkStyle arangoNetworkStyle;
 
     public NetworkManager(CyNetworkFactory networkFactory, CyNetworkManager networkManager,
             CyNetworkViewFactory networkViewFactory, CyNetworkViewManager networkViewManager,
             CyApplicationManager applicationManager, CyLayoutAlgorithmManager layoutAlgorithmManager,
-            TaskManager<?, ?> taskManager) {
+            TaskManager<?, ?> taskManager, ArangoNetworkStyle arangoNetworkStyle) {
         this.networkFactory = networkFactory;
         this.networkManager = networkManager;
         this.networkViewFactory = networkViewFactory;
@@ -48,21 +49,30 @@ public class NetworkManager {
         this.applicationManager = applicationManager;
         this.layoutAlgorithmManager = layoutAlgorithmManager;
         this.taskManager = taskManager;
+        this.arangoNetworkStyle = arangoNetworkStyle;
         this.networks = new HashMap<>();
     }
 
-    public void handleNetworkView(CyNetwork network) {
-        CyNetworkView view = networkViewFactory.createNetworkView(network);
-        networkViewManager.addNetworkView(view);
-        applicationManager.setCurrentNetworkView(view);
-        ArangoNetworkStyle.applyStyles(networkViewManager);
-        applicationManager.setCurrentNetwork(network);
+    public List<String> getAllNetworkNames() {
+        return networkManager.getNetworkSet().stream().map((n) -> n.getDefaultNetworkTable().getRow(n.getSUID()))
+                .map(row -> row.get("name", String.class))
+                .collect(Collectors.toList());
+    }
 
-        CyLayoutAlgorithm layoutAlgorithm = this.layoutAlgorithmManager.getDefaultLayout();
-        TaskIterator taskIterator = layoutAlgorithm.createTaskIterator(view, layoutAlgorithm.getDefaultLayoutContext(),
-                view.getNodeViews().stream().collect(Collectors.toSet()),
-                null);
-        taskManager.execute(taskIterator);
+    public void handleNetworkView(CyNetwork network, CyNetworkView networkView) {
+        CyNetworkView view;
+        if (networkView != null) {
+            view = networkView;
+
+        } else {
+            view = networkViewFactory.createNetworkView(network);
+            networkViewManager.addNetworkView(view);
+            applicationManager.setCurrentNetworkView(view);
+            applicationManager.setCurrentNetwork(network);
+
+        }
+        arangoNetworkStyle.applyStyles(networkViewManager);
+        applyLayout(view, view.getNodeViews().stream().collect(Collectors.toSet()));
     }
 
     private void addNetwork(CyNetwork network, ArangoNetworkAdapter adapter) {
@@ -71,7 +81,8 @@ public class NetworkManager {
         networks.put(uuid, new NetworkContext(network, adapter));
     }
 
-    public NetworkImportResult importNetwork(List<RawJson> docs, ArangoDatabase database, String query)
+    public NetworkImportResult importNetwork(List<RawJson> docs, ArangoDatabase database, String networkName,
+            String query)
             throws ImportNetworkException {
         QueryResultValidator validator = new QueryResultValidator(docs);
         if (!validator.isEdgeList() && !validator.isPathList()) {
@@ -91,9 +102,10 @@ public class NetworkManager {
         networkTable.createColumn("uuid", String.class, false);
 
         network.getDefaultNetworkTable().getRow(network.getSUID()).set("query", query);
+        network.getDefaultNetworkTable().getRow(network.getSUID()).set("name", networkName);
         networkManager.addNetwork(network);
         addNetwork(network, adapter);
-        handleNetworkView(network);
+        handleNetworkView(network, null);
 
         return new NetworkImportResult(network.getNodeCount(), network.getEdgeCount());
     }
@@ -122,21 +134,20 @@ public class NetworkManager {
         } else {
             newNodes = networkContext.getAdapter().expandWithEdges(docs, nodeId);
         }
-
-        List<Long> suids = newNodes.stream().map((node) -> {
-            return node.getSUID();
-        }).collect(Collectors.toList());
-        CyLayoutAlgorithm layoutAlgorithm = this.layoutAlgorithmManager.getDefaultLayout();
-        TaskIterator taskIterator = layoutAlgorithm.createTaskIterator(networkView,
-                layoutAlgorithm.getDefaultLayoutContext(),
-                networkView.getNodeViews().stream().filter((node) -> {
-                    return suids.contains(node.getModel().getSUID());
-                }).collect(Collectors.toSet()),
-                null);
-        taskManager.execute(taskIterator);
+        networkView.updateView();
+        handleNetworkView(network, networkView);
 
         return new NetworkImportResult(newNodes.size(), 0);
 
+    }
+
+    private void applyLayout(CyNetworkView networkView, Set<View<CyNode>> nodes) {
+        CyLayoutAlgorithm layoutAlgorithm = this.layoutAlgorithmManager.getDefaultLayout();
+        TaskIterator taskIterator = layoutAlgorithm.createTaskIterator(networkView,
+                layoutAlgorithm.getDefaultLayoutContext(),
+                nodes,
+                null);
+        taskManager.execute(taskIterator);
     }
 
     private class NetworkContext {

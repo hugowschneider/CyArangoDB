@@ -1,17 +1,22 @@
 package com.github.hugowschneider.cyarangodb.internal.network;
 
+import java.awt.Color;
+import java.awt.Paint;
+import java.util.Iterator;
+
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewManager;
-import org.cytoscape.view.presentation.property.BasicVisualLexicon;
 import org.cytoscape.view.presentation.property.ArrowShapeVisualProperty;
-import org.cytoscape.model.CyNode;
-import org.cytoscape.model.CyEdge;
-import org.cytoscape.model.CyRow;
-
-import java.awt.Color;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.cytoscape.view.presentation.property.BasicVisualLexicon;
+import org.cytoscape.view.presentation.property.NodeShapeVisualProperty;
+import org.cytoscape.view.presentation.property.values.ArrowShape;
+import org.cytoscape.view.presentation.property.values.NodeShape;
+import org.cytoscape.view.vizmap.VisualMappingFunction;
+import org.cytoscape.view.vizmap.VisualMappingFunctionFactory;
+import org.cytoscape.view.vizmap.VisualMappingManager;
+import org.cytoscape.view.vizmap.VisualStyle;
+import org.cytoscape.view.vizmap.VisualStyleFactory;
+import org.cytoscape.view.vizmap.mappings.DiscreteMapping;
 
 public class ArangoNetworkStyle {
 
@@ -34,53 +39,102 @@ public class ArangoNetworkStyle {
             new Color(144, 238, 144) // Light Green
     };
 
-    private static Map<String, Color> collectionColorMap = new HashMap<>();
+    private VisualMappingManager visualMappingManager;
+    private VisualStyleFactory visualStyleFactory;
+    private VisualMappingFunctionFactory mappingFunctionFactoryContinues;
+    private VisualMappingFunctionFactory mappingFunctionFactoryDiscrete;
+    private VisualMappingFunctionFactory mappingFunctionPassthorugh;
 
-    public static void applyStyles(CyNetworkViewManager networkViewManager) {
-        for (CyNetworkView networkView : networkViewManager.getNetworkViewSet()) {
-            applyNodeStyles(networkView);
-            applyEdgeStyles(networkView);
-            networkView.updateView();
+    private final String STYLE_NAME = "ArangoDB Style";
+
+    public ArangoNetworkStyle(VisualMappingManager visualMappingManager,
+            VisualStyleFactory visualStyleFactory,
+            VisualMappingFunctionFactory mappingFunctionFactoryContinues,
+            VisualMappingFunctionFactory mappingFunctionFactoryDiscrete,
+            VisualMappingFunctionFactory mappingFunctionPassthorugh) {
+        this.mappingFunctionFactoryContinues = mappingFunctionFactoryContinues;
+        this.mappingFunctionFactoryDiscrete = mappingFunctionFactoryDiscrete;
+        this.mappingFunctionPassthorugh = mappingFunctionPassthorugh;
+        this.visualMappingManager = visualMappingManager;
+        this.visualStyleFactory = visualStyleFactory;
+
+        createStyle();
+
+    }
+
+    public void createStyle() {
+        Iterator<VisualStyle> it = visualMappingManager.getAllVisualStyles().iterator();
+        while (it.hasNext()) {
+            VisualStyle visualStyle = (VisualStyle) it.next();
+            if (visualStyle.getTitle().equalsIgnoreCase(STYLE_NAME)) {
+                visualMappingManager.removeVisualStyle(visualStyle);
+                break;
+            }
         }
-    }
+        VisualStyle arangoDBStyle = visualStyleFactory.createVisualStyle(STYLE_NAME);
+        arangoDBStyle.setTitle(STYLE_NAME);
 
-    private static void applyNodeStyles(CyNetworkView networkView) {
-        List<CyNode> nodes = networkView.getModel().getNodeList();
-        for (CyNode node : nodes) {
-            CyRow row = networkView.getModel().getRow(node);
-            String collectionName = row.get("Collection", String.class);
-            Color color = getColorForCollection(collectionName);
-            String label = getLabelForNode(row);
+        // Set node styles
+        DiscreteMapping<String, NodeShape> nodeShapeMapping = (DiscreteMapping<String, NodeShape>) mappingFunctionFactoryDiscrete
+                .createVisualMappingFunction("Collection", String.class, BasicVisualLexicon.NODE_SHAPE);
+        nodeShapeMapping.putMapValue("value1", NodeShapeVisualProperty.ELLIPSE);
+        // Add more mappings for different collection values if needed
 
-            networkView.getNodeView(node).setVisualProperty(BasicVisualLexicon.NODE_FILL_COLOR, color);
-            networkView.getNodeView(node).setVisualProperty(BasicVisualLexicon.NODE_LABEL, label);
+        DiscreteMapping<Integer, Paint> nodeColorMapping = (DiscreteMapping<Integer, Paint>) mappingFunctionFactoryDiscrete
+                .createVisualMappingFunction("Color", Integer.class, BasicVisualLexicon.NODE_FILL_COLOR);
+        for (int i = 0; i < ArangoNetworkStyle.COLOR_TABLE.length; i++) {
+            nodeColorMapping.putMapValue(i, ArangoNetworkStyle.COLOR_TABLE[i]);
         }
+        // Add more mappings for different collection values if needed
+
+        VisualMappingFunction<String, String> nodeLabelMapping = mappingFunctionPassthorugh
+                .createVisualMappingFunction("name", String.class, BasicVisualLexicon.NODE_LABEL);
+
+        arangoDBStyle.addVisualMappingFunction(nodeShapeMapping);
+        arangoDBStyle.addVisualMappingFunction(nodeColorMapping);
+        arangoDBStyle.addVisualMappingFunction(nodeLabelMapping);
+
+        // Set edge styles
+        DiscreteMapping<String, ArrowShape> edgeArrowMapping = (DiscreteMapping<String, ArrowShape>) mappingFunctionFactoryDiscrete
+                .createVisualMappingFunction("Collection", String.class, BasicVisualLexicon.EDGE_TARGET_ARROW_SHAPE);
+        edgeArrowMapping.putMapValue("value1", ArrowShapeVisualProperty.ARROW);
+        // Add more mappings for different collection values if needed
+
+        DiscreteMapping<String, Paint> edgeColorMapping = (DiscreteMapping<String, Paint>) mappingFunctionFactoryDiscrete
+                .createVisualMappingFunction("Collection", String.class,
+                        BasicVisualLexicon.EDGE_STROKE_UNSELECTED_PAINT);
+        edgeColorMapping.putMapValue("value1", Color.DARK_GRAY);
+
+        // Add more mappings for different collection values if needed
+
+        VisualMappingFunction<String, String> edgeLabelMapping = mappingFunctionPassthorugh
+                .createVisualMappingFunction("Collection", String.class, BasicVisualLexicon.EDGE_LABEL);
+
+        arangoDBStyle.addVisualMappingFunction(edgeArrowMapping);
+        arangoDBStyle.addVisualMappingFunction(edgeColorMapping);
+        arangoDBStyle.addVisualMappingFunction(edgeLabelMapping);
+
+        visualMappingManager.addVisualStyle(arangoDBStyle);
+
     }
 
-    private static void applyEdgeStyles(CyNetworkView networkView) {
-        List<CyEdge> edges = networkView.getModel().getEdgeList();
-        for (CyEdge edge : edges) {
-            CyRow row = networkView.getModel().getRow(edge);
-            String label = getLabelForEdge(row);
+    public void applyStyles(CyNetworkViewManager networkViewManager) {
+        Iterator<VisualStyle> it = visualMappingManager.getAllVisualStyles().iterator();
 
-            networkView.getEdgeView(edge).setVisualProperty(BasicVisualLexicon.EDGE_STROKE_UNSELECTED_PAINT,
-                    Color.DARK_GRAY);
-            networkView.getEdgeView(edge).setVisualProperty(BasicVisualLexicon.EDGE_TARGET_ARROW_SHAPE,
-                    ArrowShapeVisualProperty.ARROW);
-            networkView.getEdgeView(edge).setVisualProperty(BasicVisualLexicon.EDGE_LABEL, label);
+        while (it.hasNext()) {
+            VisualStyle visualStyle = it.next();
+            if (visualStyle.getTitle().equalsIgnoreCase(STYLE_NAME)) {
+                for (CyNetworkView networkView : networkViewManager.getNetworkViewSet()) {
+                    visualMappingManager.setVisualStyle(visualStyle, networkView);
+                }
+                break;
+            }
         }
+
     }
 
-    private static Color getColorForCollection(String collectionName) {
-        return collectionColorMap.computeIfAbsent(collectionName,
-                k -> COLOR_TABLE[Math.abs(collectionName.hashCode()) % COLOR_TABLE.length]);
+    public static int computeColorIndex(String collectionName) {
+        return Math.abs(collectionName.hashCode() % COLOR_TABLE.length);
     }
 
-    private static String getLabelForNode(CyRow row) {
-        return row.get("name", String.class);
-    }
-
-    private static String getLabelForEdge(CyRow row) {
-        return row.get("Collection", String.class);
-    }
 }

@@ -143,7 +143,11 @@ public class ConnectionManager {
         ArangoDatabase database = getArangoDatabase(getConnection(connectionName));
         validate(database);
 
-        return database.query(query, RawJson.class).asListRemaining();
+        List<RawJson> docs = database.query(query, RawJson.class).asListRemaining();
+        if (includeInHistory) {
+            this.addQueryToHistory(connectionName, query);
+        }
+        return docs;
 
     }
 
