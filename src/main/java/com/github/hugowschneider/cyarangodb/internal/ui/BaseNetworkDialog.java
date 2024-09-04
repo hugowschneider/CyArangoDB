@@ -1,23 +1,7 @@
 package com.github.hugowschneider.cyarangodb.internal.ui;
 
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTable;
-import javax.swing.ListSelectionModel;
-import javax.swing.SwingWorker;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JTabbedPane;
-import javax.swing.JScrollPane;
-import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
-import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
@@ -27,25 +11,37 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+
+import org.fife.ui.autocomplete.AutoCompletion;
 import org.fife.ui.rsyntaxtextarea.AbstractTokenMakerFactory;
 import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.Theme;
-import org.fife.ui.rsyntaxtextarea.Token;
-import org.fife.ui.rtextarea.RTextScrollPane;
 import org.fife.ui.rsyntaxtextarea.TokenMakerFactory;
-import org.fife.ui.autocomplete.AutoCompletion;
-import org.fife.ui.autocomplete.CompletionProvider;
+import org.fife.ui.rtextarea.RTextScrollPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
-import com.github.hugowschneider.cyarangodb.internal.ui.aql.AQLCompletionProvider;
 import com.github.hugowschneider.cyarangodb.internal.flex.AqlTokenMaker;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.github.hugowschneider.cyarangodb.internal.ui.aql.AQLCompletionProvider;
 
 public abstract class BaseNetworkDialog extends JDialog {
     protected final ConnectionManager connectionManager;

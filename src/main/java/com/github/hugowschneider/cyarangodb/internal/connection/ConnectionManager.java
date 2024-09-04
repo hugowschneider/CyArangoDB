@@ -19,13 +19,40 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
 public class ConnectionManager {
-    private Map<String, ConnectionDetails> connections;
+    static class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
+        private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
-    private static final String FILE_PATH = System.getProperty("user.home") + File.separator + "CytoscapeConfiguration"
-            + File.separator + "arangodb-connection.json";
+        @Override
+        public void write(JsonWriter jsonWriter, LocalDateTime localDateTime) throws IOException {
+            jsonWriter.value(localDateTime.format(formatter));
+        }
+
+        @Override
+        public LocalDateTime read(JsonReader jsonReader) throws IOException {
+            return LocalDateTime.parse(jsonReader.nextString(), formatter);
+        }
+    }
+
+    private static final String ARANGODB_CONNECTION_JSON = "arangodb-connection.json";
+
+    private Map<String, ConnectionDetails> connections;
+    private final String filePath;
+
     private final Gson gson;
 
     public ConnectionManager() {
+        this(System.getProperty("user.home") + File.separator + "CytoscapeConfiguration");
+    }
+
+    public ConnectionManager(String configFolderPath) {
+        filePath = configFolderPath
+                + File.separator + ARANGODB_CONNECTION_JSON;
+
+        File configFolder = new File(configFolderPath);
+        if (!configFolder.exists()) {
+            configFolder.mkdirs();
+        }
+
         connections = new HashMap<>();
 
         gson = new GsonBuilder()
@@ -34,6 +61,10 @@ public class ConnectionManager {
 
         loadConnections();
 
+    }
+
+    public String getFilePath() {
+        return filePath;
     }
 
     // Method to add a connection
@@ -56,28 +87,6 @@ public class ConnectionManager {
     // Method to get all connections
     public Map<String, ConnectionDetails> getAllConnections() {
         return new HashMap<>(connections);
-    }
-
-    // Method to save connections to a file
-    private void saveConnections() {
-        try (Writer writer = new FileWriter(FILE_PATH)) {
-            gson.toJson(connections, writer);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Method to load connections from a file
-    private void loadConnections() {
-        try (Reader reader = new FileReader(FILE_PATH)) {
-            connections = gson.fromJson(reader, new TypeToken<Map<String, ConnectionDetails>>() {
-            }.getType());
-            if (connections == null) {
-                connections = new HashMap<>();
-            }
-        } catch (IOException e) {
-            connections = new HashMap<>();
-        }
     }
 
     // Method to add a query to history
@@ -108,14 +117,6 @@ public class ConnectionManager {
 
         ArangoDatabase db = getArangoDatabase(connectionDetails);
         return validate(db);
-
-    }
-
-    private boolean validate(ArangoDatabase db) {
-
-        db.getVersion();
-
-        return true;
 
     }
 
@@ -151,22 +152,38 @@ public class ConnectionManager {
 
     }
 
-    static class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
-        private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    public ArangoDatabase getArangoDatabase(String connectionName) {
+        return getArangoDatabase(getConnection(connectionName));
+    }
 
-        @Override
-        public void write(JsonWriter jsonWriter, LocalDateTime localDateTime) throws IOException {
-            jsonWriter.value(localDateTime.format(formatter));
-        }
-
-        @Override
-        public LocalDateTime read(JsonReader jsonReader) throws IOException {
-            return LocalDateTime.parse(jsonReader.nextString(), formatter);
+    // Method to save connections to a file
+    private void saveConnections() {
+        try (Writer writer = new FileWriter(filePath)) {
+            gson.toJson(connections, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    public ArangoDatabase getArangoDatabase(String connectionName) {
-        return getArangoDatabase(getConnection(connectionName));
+    // Method to load connections from a file
+    private void loadConnections() {
+        try (Reader reader = new FileReader(filePath)) {
+            connections = gson.fromJson(reader, new TypeToken<Map<String, ConnectionDetails>>() {
+            }.getType());
+            if (connections == null) {
+                connections = new HashMap<>();
+            }
+        } catch (IOException e) {
+            connections = new HashMap<>();
+        }
+    }
+
+    private boolean validate(ArangoDatabase db) {
+
+        db.getVersion();
+
+        return true;
+
     }
 
 }

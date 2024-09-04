@@ -6,38 +6,62 @@ on:
       - "*"
   pull_request:
     branches:
-      - "*"
-
+      - "*"  
 jobs:
   build:
+    env:
+      ARANGODB_HOST: localhost
+      ARANGODB_PORT: 8529
+      ARANGODB_USERNAME: root
+      ARANGODB_PASSWORD: arangodbpwd
+      ARANGODB_DATABASE: IMDB
     runs-on: ubuntu-latest
+    services:      
+      arangodb:
+        image: arangodb:latest
+        env:
+          ARANGO_ROOT_PASSWORD: "arangodbpwd"
+        ports:
+          - 8529:8529
+        options: >-
+          --health-cmd "arangosh --server.endpoint tcp://localhost:8529 --server.username root --server.password arangodbpwd --javascript.execute-string 'db._version()'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --name arangodb  
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up JDK 11
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'arangodb/example-datasets'
+          ref: 5936aa1129d8f402e1ccb6f9b22bc3773cf3ee49
+          path: ./example-datasets
+      - name: Setting up test Database
+        run: |
+          docker cp "./example-datasets/Graphs/IMDB" "arangodb:/tmp/example-datasets";
+          docker exec "arangodb" sh -c "cd /tmp/example-datasets && arangorestore --server.endpoint tcp://localhost:8529 --server.username $ARANGODB_USERNAME --server.password arangodbpwd --server.database IMDB --create-database --include-system-collections"
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: "microsoft"
           java-version: "21"
           cache: maven
-      - name: Run the Maven verify phase
-        run: mvn --batch-mode --update-snapshots verify
-
+     
       - name: Compile
         run: mvn --batch-mode compile
 
-      - name: Install
-        run: mvn --batch-mode install
-
       - name: Run tests
         run: mvn -B test
+      
+      - name: Install
+        run: mvn --batch-mode install -DskipTests
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

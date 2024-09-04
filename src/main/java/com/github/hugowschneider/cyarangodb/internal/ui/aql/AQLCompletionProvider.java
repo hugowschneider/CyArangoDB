@@ -1,15 +1,21 @@
 package com.github.hugowschneider.cyarangodb.internal.ui.aql;
 
 import java.awt.Point;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-import javax.swing.text.JTextComponent;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.Element;
+import javax.swing.text.JTextComponent;
 import javax.swing.text.Segment;
+
 import org.fife.ui.autocomplete.AbstractCompletionProvider;
 import org.fife.ui.autocomplete.BasicCompletion;
 import org.fife.ui.autocomplete.Completion;
@@ -17,28 +23,38 @@ import org.fife.ui.autocomplete.ParameterizedCompletion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.arangodb.ArangoCursor;
 import com.arangodb.ArangoDatabase;
 import com.arangodb.entity.CollectionEntity;
 import com.arangodb.entity.CollectionType;
+import com.arangodb.model.CollectionsReadOptions;
 
 public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AQLCompletionProvider.class);
 
+	private static final String[] AQL_KEYWORDS_BEFORE_COLLECTIONS = {
+			"IN"
+	};
+
+	private static final String[] AQL_KEYWORDS_BEFORE_NODES = {
+			"ANY", "INBOUND", "OUTBOUND", "ALL_SHORTEST_PATHS", "K_PATHS", "K_SHORTEST_PATHS", "SHORTEST_PATH"
+	};
+
+	private static final String[] AQL_KEYWORDS_BEFORE_GRAPHS = {
+			"GRAPH"
+	};
+
 	private static final String[] AQL_KEYWORDS = {
-			"FOR", "IN", "RETURN", "LET", "FILTER", "SORT", "LIMIT", "COLLECT",
-			"INSERT", "UPDATE", "REPLACE", "REMOVE", "UPSERT",
-			"WITH", "DISTINCT", "GRAPH", "SHORTEST_PATH", "OUTBOUND", "INBOUND",
-			"ANY", "ALL", "NONE", "AND", "OR", "NOT", "TRUE", "FALSE", "NULL",
-			"LIKE", "INTO", "OPTIONS", "KEEP", "PRUNE", "SEARCH", "TO", "FROM",
-			"TRAVERSAL", "NEIGHBORS", "K_SHORTEST_PATHS", "K_PATHS", "ALL_SHORTEST_PATHS",
-			"ALL_PATHS", "ANY_PATH", "GRAPH_PATHS", "GRAPH_VERTICES", "GRAPH_EDGES",
-			"GRAPH_NEIGHBORS", "GRAPH_TRAVERSAL", "GRAPH_SHORTEST_PATH", "GRAPH_K_SHORTEST_PATHS",
-			"GRAPH_K_PATHS", "GRAPH_ALL_SHORTEST_PATHS", "GRAPH_ALL_PATHS", "GRAPH_ANY_PATH"
+			"AGGREGATE", "ALL", "ALL_SHORTEST_PATHS", "AND", "ANY", "ASC", "COLLECT",
+			"DESC", "DISTINCT", "FALSE", "FILTER", "FOR", "GRAPH", "IN", "INBOUND",
+			"INSERT", "INTO", "K_PATHS", "K_SHORTEST_PATHS", "LET", "LIKE", "LIMIT",
+			"NONE", "NOT", "NULL", "OR", "OUTBOUND", "REMOVE", "REPLACE", "RETURN",
+			"SHORTEST_PATH", "SORT", "TRUE", "UPDATE", "UPSERT", "WINDOW", "WITH"
 	};
 	private static final String[] AQL_FUNCTIONS = {
 			"LENGTH", "COUNT", "SUM", "MIN", "MAX", "AVERAGE", "CONCAT", "SUBSTRING",
-			"CONTAINS", "UPPER", "LOWER", "LIKE", "RANDOM_TOKEN",
+			"CONTAINS", "UPPER", "LOWER", "RANDOM_TOKEN",
 			"ABS", "ACOS", "ASIN", "ATAN", "ATAN2", "CEIL", "COS", "DEGREES", "EXP",
 			"FLOOR", "LOG", "LOG10", "PI", "POW", "RADIANS", "ROUND", "SIN", "SQRT",
 			"TAN", "RAND", "DATE_NOW", "DATE_TIMESTAMP", "DATE_ISO8601", "DATE_DAYOFWEEK",
@@ -83,6 +99,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		initializeAQLCompletions();
 		seg = new Segment();
 		this.database = database;
+		updateDatabaseCompletions();
 	}
 
 	private void updateDatabaseCompletions() {
@@ -93,19 +110,21 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			return;
 		}
 
-		try {
-			Collection<CollectionEntity> collections = this.database.getCollections();
-			for (CollectionEntity collection : collections) {
-				if (collection.getType() == CollectionType.DOCUMENT) {
-					docCollectionNames.add(collection.getName());
-				} else if (collection.getType() == CollectionType.EDGES) {
-					edgeCollectionNames.add(collection.getName());
-				}
+		Collection<CollectionEntity> collections = this.database
+				.getCollections(new CollectionsReadOptions().excludeSystem(true));
+		for (CollectionEntity collection : collections) {
+			if (collection.getType() == CollectionType.DOCUMENT) {
+				docCollectionNames.add(collection.getName());
+			} else if (collection.getType() == CollectionType.EDGES) {
+				edgeCollectionNames.add(collection.getName());
 			}
-			this.database.getGraphs().forEach(graph -> graphNames.add(graph.getName()));
-		} catch (Exception e) {
-			LOGGER.error("Failed to get collections from database", e);
 		}
+		this.database.getGraphs().forEach(graph -> graphNames.add(graph.getName()));
+
+		Collections.sort(docCollectionNames);
+		Collections.sort(edgeCollectionNames);
+		Collections.sort(graphNames);
+
 	}
 
 	public ArangoDatabase getDatabase() {
@@ -122,7 +141,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			addCompletion(new BasicCompletion(this, keyword));
 		}
 		for (String function : AQL_FUNCTIONS) {
-			addCompletion(new BasicCompletion(this, function + "()"));
+			addCompletion(new BasicCompletion(this, function));
 		}
 	}
 
@@ -160,22 +179,24 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 		while (previousIndex >= 0 && (prevWordStart < previousSegment.offset ||
 				!isValidChar(previousSegment.array[prevWordStart]))) {
-			Element prevElem = root.getElement(previousIndex);
-			int prevElemStart = prevElem.getStartOffset();
-			int prevSegmentEnd = prevElem.getEndOffset() - 1;
-			try {
-				doc.getText(prevElemStart, prevSegmentEnd - prevElemStart, previousSegment);
-			} catch (BadLocationException ble) {
-				ble.printStackTrace();
-				return EMPTY_STRING;
-			}
-			while (!isValidChar(previousSegment.array[prevWordEnd])) {
-				prevWordEnd--;
-			}
+			if (prevWordEnd > 0) {
+				Element prevElem = root.getElement(previousIndex);
+				int prevElemStart = prevElem.getStartOffset();
+				int prevSegmentEnd = prevElem.getEndOffset() - 1;
+				try {
+					doc.getText(prevElemStart, prevSegmentEnd - prevElemStart, previousSegment);
+				} catch (BadLocationException ble) {
+					ble.printStackTrace();
+					return EMPTY_STRING;
+				}
+				while (prevWordEnd >= 0 && !isValidChar(previousSegment.array[prevWordEnd])) {
+					prevWordEnd--;
+				}
 
-			prevWordStart = prevWordEnd - 1;
-			while (prevWordStart >= previousSegment.offset && isValidChar(previousSegment.array[prevWordStart])) {
-				prevWordStart--;
+				prevWordStart = prevWordEnd - 1;
+				while (prevWordStart >= previousSegment.offset && isValidChar(previousSegment.array[prevWordStart])) {
+					prevWordStart--;
+				}
 			}
 			previousIndex--;
 
@@ -184,7 +205,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 		int prevWordLen = prevWordEnd - prevWordStart + 1;
 
-		previousWord = prevWordLen == 0 ? EMPTY_STRING : new String(previousSegment.array, prevWordStart, prevWordLen);
+		previousWord = prevWordLen <= 0 ? EMPTY_STRING : new String(previousSegment.array, prevWordStart, prevWordLen);
 
 		return len == 0 ? EMPTY_STRING : new String(seg.array, start, len);
 
@@ -264,7 +285,66 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	 * @return Whether the character is valid.
 	 */
 	protected boolean isValidChar(char ch) {
-		return Character.isLetterOrDigit(ch) || ch == '_';
+		return Character.isLetterOrDigit(ch) || ch == '_' || ch == '`' || ch == '\'' || ch == '"' || ch == '/';
+	}
+
+	private List<Completion> getContexAwareeCompletions(String currentWord, String previousWord) {
+		List<String> arangoCompletions = new ArrayList<>();
+		final List<Completion> completions;
+		if (Arrays.asList(AQL_KEYWORDS_BEFORE_COLLECTIONS).contains(previousWord)) {
+			arangoCompletions.addAll(filterList(docCollectionNames, currentWord));
+			arangoCompletions.addAll(filterList(edgeCollectionNames, currentWord));
+			completions = arangoCompletions.stream().sorted().map((str) -> new BasicCompletion(this, str))
+					.collect(Collectors.toList());
+		} else if (Arrays.asList(AQL_KEYWORDS_BEFORE_NODES).contains(previousWord)) {
+			if ((currentWord.startsWith("'") || currentWord.startsWith("\"")) && currentWord.contains("/")) {
+				String collectionName = currentWord.substring(1, currentWord.indexOf("/"));
+				String substr = currentWord.substring(currentWord.indexOf("/") + 1);
+				StringBuilder query = new StringBuilder("FOR n IN ")
+						.append(collectionName.replaceAll("[^a-zA-Z0-9_]", ""))
+						.append(" ");
+				Map<String, Object> bindVars = new HashMap<>();
+
+				if (substr.length() > 0) {
+					query.append("FILTER LOWER(n._id) LIKE @substr ").toString();
+					bindVars.put("substr", String.format("%1$s/%2$s%%", collectionName, substr));
+				}
+				query.append("SORT n._id ASC LIMIT 20 RETURN n._id");
+				ArangoCursor<String> ids = database.query(query.toString(), String.class, bindVars, null);
+				completions = ids.stream().map((s) -> new BasicCompletion(this, s)).collect(Collectors.toList());
+			} else {
+				arangoCompletions
+						.addAll(filterList(docCollectionNames, currentWord.replace("'", "").replace("\"", "")));
+
+				completions = arangoCompletions.stream().sorted()
+						.map((str) -> new BasicCompletion(this, String.format(
+								currentWord.startsWith("'") ? "'%1$s/"
+										: (currentWord.startsWith("\"") ? "\"%1$s/" : "'%1$s/"),
+								str)))
+						.collect(Collectors.toList());
+			}
+		} else {
+			completions = Collections.emptyList();
+		}
+
+		return completions;
+
+	}
+
+	@Override
+	public List<Completion> getCompletions(JTextComponent arg0) {
+
+		String text = getAlreadyEnteredText(arg0);
+		List<Completion> completions = new ArrayList<>();
+		completions.addAll(getContexAwareeCompletions(text, getPreviousWord()));
+		completions.addAll(super.getCompletions(arg0));
+		return completions;
+	}
+
+	protected List<String> filterList(List<String> list, String text) {
+
+		return list.stream().filter((str) -> str.toLowerCase().startsWith(text.toLowerCase()))
+				.collect(Collectors.toList());
 	}
 
 	@Override
@@ -276,7 +356,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			return lastParameterizedCompletionsAt = null;
 		}
 
-		Segment s = new Segment();
+		Segment segment = new Segment();
 		Document doc = tc.getDocument();
 		Element root = doc.getDefaultRootElement();
 		int line = root.getElementIndex(offset);
@@ -286,17 +366,17 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 		try {
 
-			doc.getText(start, end - start, s);
+			doc.getText(start, end - start, segment);
 
 			// Get the valid chars before the specified offset.
-			int startOffs = s.offset + (offset - start) - 1;
-			while (startOffs >= s.offset && isValidChar(s.array[startOffs])) {
+			int startOffs = segment.offset + (offset - start) - 1;
+			while (startOffs >= segment.offset && isValidChar(segment.array[startOffs])) {
 				startOffs--;
 			}
 
 			// Get the valid chars at and after the specified offset.
-			int endOffs = s.offset + (offset - start);
-			while (endOffs < s.offset + s.count && isValidChar(s.array[endOffs])) {
+			int endOffs = segment.offset + (offset - start);
+			while (endOffs < segment.offset + segment.count && isValidChar(segment.array[endOffs])) {
 				endOffs++;
 			}
 
@@ -304,16 +384,24 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			if (len <= 0) {
 				return lastParameterizedCompletionsAt = null;
 			}
-			String text = new String(s.array, startOffs + 1, len);
+			String text = new String(segment.array, startOffs + 1, len);
 
 			if (text.equals(lastCompletionsAtText)) {
 				return lastParameterizedCompletionsAt;
 			}
+			List<String> arangoCompletions = new ArrayList<>();
+			List<Completion> completions = new ArrayList<>();
+			if (Arrays.asList(AQL_KEYWORDS_BEFORE_COLLECTIONS).contains(getPreviousWord())) {
+				arangoCompletions.addAll(filterList(docCollectionNames, text));
+				arangoCompletions.addAll(filterList(edgeCollectionNames, text));
+				completions = arangoCompletions.stream().sorted().map((str) -> new BasicCompletion(this, str))
+						.collect(Collectors.toList());
+			}
 
 			// Get a list of all Completions matching the text.
-			List<Completion> list = getCompletionByInputText(text);
+			completions.addAll(getCompletionByInputText(text));
 			lastCompletionsAtText = text;
-			return lastParameterizedCompletionsAt = list;
+			return lastParameterizedCompletionsAt = completions;
 
 		} catch (BadLocationException ble) {
 			ble.printStackTrace(); // Never happens
