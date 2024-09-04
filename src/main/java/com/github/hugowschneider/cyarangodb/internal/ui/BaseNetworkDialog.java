@@ -99,6 +99,7 @@ public abstract class BaseNetworkDialog extends JDialog {
         queryTextArea.setAntiAliasingEnabled(true);
         queryTextArea.setEditable(true);
         queryTextArea.setEnabled(true);
+
         setupCodeStyles(queryTextArea);
         setupAutoCompletion(queryTextArea);
 

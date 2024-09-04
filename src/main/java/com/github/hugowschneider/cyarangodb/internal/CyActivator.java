@@ -28,12 +28,19 @@ import com.github.hugowschneider.cyarangodb.internal.task.ExpandNodeContextMenuF
 import com.github.hugowschneider.cyarangodb.internal.ui.ImportNetworkAction;
 import com.github.hugowschneider.cyarangodb.internal.ui.ManageConnectionsAction;
 import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.swing.JFrame;
 
 public class CyActivator extends AbstractCyActivator {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(CyActivator.class);
+
 	@Override
 	public void start(BundleContext context) throws Exception {
+
+		LOGGER.debug("Starting CyArangoDB Application...");
 
 		CySwingApplication cySwingApplication = getService(context, CySwingApplication.class);
 
@@ -90,6 +97,8 @@ public class CyActivator extends AbstractCyActivator {
 		props.setProperty(MENU_GRAVITY, "10.0");
 		props.setProperty(TITLE, "Extend Network using ArangoDB Query");
 		registerService(context, factory, NodeViewTaskFactory.class, props);
+
+		LOGGER.debug("CyArangoDB Application started.");
 
 	}
 }

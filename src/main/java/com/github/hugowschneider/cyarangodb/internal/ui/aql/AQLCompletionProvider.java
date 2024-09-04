@@ -3,6 +3,8 @@ package com.github.hugowschneider.cyarangodb.internal.ui.aql;
 import java.awt.Point;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collection;
+
 import javax.swing.text.JTextComponent;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -16,6 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.arangodb.ArangoDatabase;
+import com.arangodb.entity.CollectionEntity;
+import com.arangodb.entity.CollectionType;
 
 public class AQLCompletionProvider extends AbstractCompletionProvider {
 
@@ -47,22 +51,61 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			"DATE_TIMEZONE_DST_ABBREVIATION", "DATE_TIMEZONE_DST_START", "DATE_TIMEZONE_DST_END",
 			"DATE_TIMEZONE_DST_NEXT", "DATE_TIMEZONE_DST_PREVIOUS", "DATE_TIMEZONE_DST_ISDST"
 	};
-	private final Segment segment;
 
-	private String cachedCompletionsText;
+	/**
+	 * Used to speed up {@link #getCompletionsAt(JTextComponent, Point)}.
+	 */
+	private String lastCompletionsAtText;
 
-	private List<Completion> cachedParameterizedCompletions;
+	/**
+	 * Used to speed up {@link #getCompletionsAt(JTextComponent, Point)},
+	 * since this may be called multiple times in succession (this is usually
+	 * called by {@code JTextComponent.getToolTipText()}, and if the user
+	 * wiggles the mouse while a tool tip is displayed, this method gets
+	 * repeatedly called. It can be costly, so we try to speed it up a tad).
+	 */
+	private List<Completion> lastParameterizedCompletionsAt;
 
 	private ArangoDatabase database;
 
-	public AQLCompletionProvider() {
-		this(null);
-	}
+	private Segment seg;
+
+	private List<String> docCollectionNames;
+	private List<String> edgeCollectionNames;
+	private List<String> graphNames;
+	private String previousWord;
 
 	public AQLCompletionProvider(ArangoDatabase database) {
-		this.segment = new Segment();
-		initializeAQLCompletions();
+
+		seg = new Segment();
 		this.database = database;
+
+		initializeAQLCompletions();
+		seg = new Segment();
+		this.database = database;
+	}
+
+	private void updateDatabaseCompletions() {
+		docCollectionNames = new ArrayList<>();
+		edgeCollectionNames = new ArrayList<>();
+		graphNames = new ArrayList<>();
+		if (this.database == null) {
+			return;
+		}
+
+		try {
+			Collection<CollectionEntity> collections = this.database.getCollections();
+			for (CollectionEntity collection : collections) {
+				if (collection.getType() == CollectionType.DOCUMENT) {
+					docCollectionNames.add(collection.getName());
+				} else if (collection.getType() == CollectionType.EDGES) {
+					edgeCollectionNames.add(collection.getName());
+				}
+			}
+			this.database.getGraphs().forEach(graph -> graphNames.add(graph.getName()));
+		} catch (Exception e) {
+			LOGGER.error("Failed to get collections from database", e);
+		}
 	}
 
 	public ArangoDatabase getDatabase() {
@@ -71,164 +114,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	public void setDatabase(ArangoDatabase database) {
 		this.database = database;
-	}
-
-	@Override
-	public String getAlreadyEnteredText(JTextComponent comp) {
-		int caretPosition = comp.getCaretPosition();
-		Document document = comp.getDocument();
-		Element lineElement = document.getDefaultRootElement()
-				.getElement(document.getDefaultRootElement().getElementIndex(caretPosition));
-
-		int lineStartOffset = lineElement.getStartOffset();
-		int enteredTextLength = caretPosition - lineStartOffset;
-
-		try {
-			document.getText(lineStartOffset, enteredTextLength, segment);
-		} catch (BadLocationException e) {
-			LOGGER.error("Failed to get text from document", e);
-			return EMPTY_STRING;
-		}
-
-		return extractValidText(segment, enteredTextLength);
-	}
-
-	@Override
-	public List<Completion> getCompletionsAt(JTextComponent component, Point point) {
-		int offset = component.viewToModel2D(point);
-		if (offset < 0 || offset >= component.getDocument().getLength()) {
-			resetCachedCompletions();
-			return cachedParameterizedCompletions;
-		}
-
-		try {
-			String textAtPoint = getTextAtOffset(component.getDocument(), offset);
-			if (textAtPoint.equals(cachedCompletionsText)) {
-				return cachedParameterizedCompletions;
-			}
-
-			cachedParameterizedCompletions = getCompletionByInputText(textAtPoint);
-			cachedCompletionsText = textAtPoint;
-		} catch (BadLocationException e) {
-			LOGGER.error("Error while getting completions at point", e);
-		}
-
-		return cachedParameterizedCompletions;
-	}
-
-	@Override
-	public List<ParameterizedCompletion> getParameterizedCompletions(JTextComponent component) {
-		if (getParameterListStart() == 0) {
-			return null;
-		}
-
-		int caretPosition = component.getCaretPosition();
-		Document document = component.getDocument();
-		Element lineElement = document.getDefaultRootElement()
-				.getElement(document.getDefaultRootElement().getElementIndex(caretPosition));
-
-		try {
-			int lineStartOffset = lineElement.getStartOffset();
-			int queryTextLength = caretPosition - lineStartOffset - 1;
-			if (queryTextLength <= 0) {
-				return null;
-			}
-
-			document.getText(lineStartOffset, queryTextLength, segment);
-
-			String identifier = extractIdentifier(segment, queryTextLength);
-			return filterParameterizedCompletions(identifier);
-		} catch (BadLocationException e) {
-			LOGGER.error("Failed to get parameterized completions", e);
-		}
-
-		return null;
-	}
-
-	protected boolean isValidChar(char ch) {
-		return Character.isLetterOrDigit(ch) || ch == '_';
-	}
-
-	private void resetCachedCompletions() {
-		cachedCompletionsText = null;
-		cachedParameterizedCompletions = null;
-	}
-
-	private String getTextAtOffset(Document document, int offset) throws BadLocationException {
-		Element rootElement = document.getDefaultRootElement();
-		int lineIndex = rootElement.getElementIndex(offset);
-		Element lineElement = rootElement.getElement(lineIndex);
-
-		int lineStartOffset = lineElement.getStartOffset();
-		int lineEndOffset = lineElement.getEndOffset() - 1;
-
-		document.getText(lineStartOffset, lineEndOffset - lineStartOffset, segment);
-
-		int validTextStart = findValidTextStart(segment, offset - lineStartOffset);
-		int validTextEnd = findValidTextEnd(segment, offset - lineStartOffset);
-
-		return new String(segment.array, validTextStart + 1, validTextEnd - validTextStart - 1);
-	}
-
-	private String extractValidText(Segment segment, int length) {
-		int segmentEnd = segment.offset + length;
-		int validTextStart = segmentEnd - 1;
-
-		while (validTextStart >= segment.offset && isValidChar(segment.array[validTextStart])) {
-			validTextStart--;
-		}
-
-		validTextStart++;
-		int validTextLength = segmentEnd - validTextStart;
-
-		return validTextLength == 0 ? EMPTY_STRING : new String(segment.array, validTextStart, validTextLength);
-	}
-
-	private String extractIdentifier(Segment segment, int length) {
-		int endOffset = segment.offset + length - 1;
-
-		while (endOffset >= segment.offset && Character.isWhitespace(segment.array[endOffset])) {
-			endOffset--;
-		}
-
-		int startOffset = endOffset;
-
-		while (startOffset >= segment.offset && isValidChar(segment.array[startOffset])) {
-			startOffset--;
-		}
-
-		return new String(segment.array, startOffset + 1, endOffset - startOffset);
-	}
-
-	private List<ParameterizedCompletion> filterParameterizedCompletions(String identifier) {
-		List<ParameterizedCompletion> parameterizedCompletions = new ArrayList<>();
-		List<Completion> completions = getCompletionByInputText(identifier);
-
-		if (completions != null) {
-			for (Completion completion : completions) {
-				if (completion instanceof ParameterizedCompletion) {
-					parameterizedCompletions.add((ParameterizedCompletion) completion);
-				}
-			}
-		}
-
-		return parameterizedCompletions.isEmpty() ? null : parameterizedCompletions;
-	}
-
-	private int findValidTextStart(Segment segment, int offset) {
-		int validTextStart = segment.offset + offset - 1;
-		while (validTextStart >= segment.offset && isValidChar(segment.array[validTextStart])) {
-			validTextStart--;
-		}
-		return validTextStart;
-	}
-
-	private int findValidTextEnd(Segment segment, int offset) {
-		int validTextEnd = segment.offset + offset;
-		while (validTextEnd < segment.offset + segment.count && isValidChar(segment.array[validTextEnd])) {
-			validTextEnd++;
-		}
-		return validTextEnd;
+		updateDatabaseCompletions();
 	}
 
 	private void initializeAQLCompletions() {
@@ -238,5 +124,207 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		for (String function : AQL_FUNCTIONS) {
 			addCompletion(new BasicCompletion(this, function + "()"));
 		}
+	}
+
+	@Override
+	public String getAlreadyEnteredText(JTextComponent comp) {
+
+		Document doc = comp.getDocument();
+
+		int dot = comp.getCaretPosition();
+		Element root = doc.getDefaultRootElement();
+		int index = root.getElementIndex(dot);
+		Element elem = root.getElement(index);
+		int start = elem.getStartOffset();
+		int len = dot - start;
+		try {
+			doc.getText(start, len, seg);
+		} catch (BadLocationException ble) {
+			ble.printStackTrace();
+			return EMPTY_STRING;
+		}
+
+		int segEnd = seg.offset + len;
+		start = segEnd - 1;
+		while (start >= seg.offset && isValidChar(seg.array[start])) {
+			start--;
+		}
+		start++;
+
+		len = segEnd - start;
+
+		int prevWordEnd = start - 1;
+		Segment previousSegment = seg;
+		int prevWordStart = prevWordEnd;
+		int previousIndex = index;
+
+		while (previousIndex >= 0 && (prevWordStart < previousSegment.offset ||
+				!isValidChar(previousSegment.array[prevWordStart]))) {
+			Element prevElem = root.getElement(previousIndex);
+			int prevElemStart = prevElem.getStartOffset();
+			int prevSegmentEnd = prevElem.getEndOffset() - 1;
+			try {
+				doc.getText(prevElemStart, prevSegmentEnd - prevElemStart, previousSegment);
+			} catch (BadLocationException ble) {
+				ble.printStackTrace();
+				return EMPTY_STRING;
+			}
+			while (!isValidChar(previousSegment.array[prevWordEnd])) {
+				prevWordEnd--;
+			}
+
+			prevWordStart = prevWordEnd - 1;
+			while (prevWordStart >= previousSegment.offset && isValidChar(previousSegment.array[prevWordStart])) {
+				prevWordStart--;
+			}
+			previousIndex--;
+
+		}
+		prevWordStart++;
+
+		int prevWordLen = prevWordEnd - prevWordStart + 1;
+
+		previousWord = prevWordLen == 0 ? EMPTY_STRING : new String(previousSegment.array, prevWordStart, prevWordLen);
+
+		return len == 0 ? EMPTY_STRING : new String(seg.array, start, len);
+
+	}
+
+	@Override
+	public List<ParameterizedCompletion> getParameterizedCompletions(
+			JTextComponent tc) {
+
+		List<ParameterizedCompletion> list = null;
+
+		// If this provider doesn't support parameterized completions,
+		// bail out now.
+		char paramListStart = getParameterListStart();
+		if (paramListStart == 0) {
+			return list; // null
+		}
+
+		int dot = tc.getCaretPosition();
+		Segment s = new Segment();
+		Document doc = tc.getDocument();
+		Element root = doc.getDefaultRootElement();
+		int line = root.getElementIndex(dot);
+		Element elem = root.getElement(line);
+		int offs = elem.getStartOffset();
+		int len = dot - offs - 1/* paramListStart.length() */;
+		if (len <= 0) { // Not enough chars on the line for a method.
+			return list; // null
+		}
+
+		try {
+
+			doc.getText(offs, len, s);
+
+			// Get the identifier preceding the '(', ignoring any whitespace
+			// between them.
+			offs = s.offset + len - 1;
+			while (offs >= s.offset && Character.isWhitespace(s.array[offs])) {
+				offs--;
+			}
+			int end = offs;
+			while (offs >= s.offset && isValidChar(s.array[offs])) {
+				offs--;
+			}
+
+			String text = new String(s.array, offs + 1, end - offs);
+
+			// Get a list of all Completions matching the text, but then
+			// narrow it down to just the ParameterizedCompletions.
+			List<Completion> l = getCompletionByInputText(text);
+			if (l != null && !l.isEmpty()) {
+				for (Object o : l) {
+					if (o instanceof ParameterizedCompletion) {
+						if (list == null) {
+							list = new ArrayList<>(1);
+						}
+						list.add((ParameterizedCompletion) o);
+					}
+				}
+			}
+
+		} catch (BadLocationException ble) {
+			ble.printStackTrace(); // Never happens
+		}
+
+		return list;
+
+	}
+
+	/**
+	 * Returns whether the specified character is valid in an auto-completion.
+	 * The default implementation is equivalent to
+	 * "<code>Character.isLetterOrDigit(ch) || ch=='_'</code>". Subclasses
+	 * can override this method to change what characters are matched.
+	 *
+	 * @param ch The character.
+	 * @return Whether the character is valid.
+	 */
+	protected boolean isValidChar(char ch) {
+		return Character.isLetterOrDigit(ch) || ch == '_';
+	}
+
+	@Override
+	public List<Completion> getCompletionsAt(JTextComponent tc, Point p) {
+
+		int offset = tc.viewToModel2D(p);
+		if (offset < 0 || offset >= tc.getDocument().getLength()) {
+			lastCompletionsAtText = null;
+			return lastParameterizedCompletionsAt = null;
+		}
+
+		Segment s = new Segment();
+		Document doc = tc.getDocument();
+		Element root = doc.getDefaultRootElement();
+		int line = root.getElementIndex(offset);
+		Element elem = root.getElement(line);
+		int start = elem.getStartOffset();
+		int end = elem.getEndOffset() - 1;
+
+		try {
+
+			doc.getText(start, end - start, s);
+
+			// Get the valid chars before the specified offset.
+			int startOffs = s.offset + (offset - start) - 1;
+			while (startOffs >= s.offset && isValidChar(s.array[startOffs])) {
+				startOffs--;
+			}
+
+			// Get the valid chars at and after the specified offset.
+			int endOffs = s.offset + (offset - start);
+			while (endOffs < s.offset + s.count && isValidChar(s.array[endOffs])) {
+				endOffs++;
+			}
+
+			int len = endOffs - startOffs - 1;
+			if (len <= 0) {
+				return lastParameterizedCompletionsAt = null;
+			}
+			String text = new String(s.array, startOffs + 1, len);
+
+			if (text.equals(lastCompletionsAtText)) {
+				return lastParameterizedCompletionsAt;
+			}
+
+			// Get a list of all Completions matching the text.
+			List<Completion> list = getCompletionByInputText(text);
+			lastCompletionsAtText = text;
+			return lastParameterizedCompletionsAt = list;
+
+		} catch (BadLocationException ble) {
+			ble.printStackTrace(); // Never happens
+		}
+
+		lastCompletionsAtText = null;
+		return lastParameterizedCompletionsAt = null;
+
+	}
+
+	public String getPreviousWord() {
+		return previousWord;
 	}
 }
