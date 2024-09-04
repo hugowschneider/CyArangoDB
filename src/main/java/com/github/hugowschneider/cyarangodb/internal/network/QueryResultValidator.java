@@ -95,8 +95,6 @@ public class QueryResultValidator {
                     if (edgesObj instanceof List && verticesObj instanceof List) {
                         @SuppressWarnings("unchecked")
                         List<Map<String, Object>> edges = (List<Map<String, Object>>) edgesObj;
-                        @SuppressWarnings("unchecked")
-                        List<Map<String, Object>> vertices = (List<Map<String, Object>>) verticesObj;
                         if (!edges.isEmpty()) {
                             for (Map<String, Object> edge : edges) {
                                 if (edge.get("_from").equals(id) || edge.get("_to").equals(id)) {

@@ -1,9 +1,14 @@
 package com.github.hugowschneider.cyarangodb.internal.network;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.cytoscape.model.CyEdge;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkFactory;
-
 import org.cytoscape.model.CyNode;
 import org.cytoscape.model.CyRow;
 import org.cytoscape.model.CyTable;
@@ -16,13 +21,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.stream.Collectors;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ArrayList;
 
 public class ArangoNetworkAdapter {
     private CyNetworkFactory networkFactory;
@@ -30,14 +28,14 @@ public class ArangoNetworkAdapter {
     private Map<String, BaseDocument> loadedNodes;
     private Map<String, CyNode> nodes;
     private ObjectMapper mapper;
-    private Map<String, List<String>> edges;
+    private List<String> edges;
     private CyNetwork network;
 
     public ArangoNetworkAdapter(ArangoDatabase database, CyNetworkFactory networkFactory) {
         this.mapper = new ObjectMapper();
         this.loadedNodes = new HashMap<>();
         this.nodes = new HashMap<>();
-        this.edges = new HashMap<>();
+        this.edges = new ArrayList<>();
         this.networkFactory = networkFactory;
     }
 
@@ -56,11 +54,6 @@ public class ArangoNetworkAdapter {
     }
 
     private String getName(BaseDocument doc) {
-        if (doc.getAttribute("label") != null) {
-            Object label = doc.getAttribute("label");
-            System.out.println(label.getClass().getName());
-
-        }
 
         if (doc.getAttribute("Name") != null) {
             return (String) doc.getAttribute("Name");
@@ -211,13 +204,11 @@ public class ArangoNetworkAdapter {
 
         edges.forEach((edge) -> {
 
-            if (this.edges.get(edge.getFrom()) == null) {
-                this.edges.put(edge.getFrom(), new ArrayList<>());
-            }
-            if (this.edges.get(edge.getFrom()).contains(edge.getTo())) {
+            if (this.edges.contains(edge.getId())) {
                 return;
             }
-            this.edges.get(edge.getFrom()).add(edge.getTo());
+
+            this.edges.add(edge.getId());
 
             BaseDocument to = getOrRetriveNode(edge.getTo());
             BaseDocument from = getOrRetriveNode(edge.getFrom());
@@ -270,16 +261,15 @@ public class ArangoNetworkAdapter {
         CyTable cyEdgeTable = network.getDefaultEdgeTable();
         edges.forEach((edge) -> {
 
-            if (this.edges.get(edge.getFrom()) == null) {
-                this.edges.put(edge.getFrom(), new ArrayList<>());
-            }
-            if (this.edges.get(edge.getFrom()).contains(edge.getTo())) {
+            if (this.edges.contains(edge.getId())) {
                 return;
             }
-            this.edges.get(edge.getFrom()).add(edge.getTo());
+
+            this.edges.add(edge.getId());
 
             BaseDocument to = getOrRetriveNode(edge.getTo());
             BaseDocument from = getOrRetriveNode(edge.getFrom());
+
             boolean addTo = nodes.get(to.getId()) != null;
             boolean addFrom = nodes.get(from.getId()) != null;
 
@@ -306,6 +296,7 @@ public class ArangoNetworkAdapter {
                 row.set("Data", String.format("Error reading edge Data: %1$s", e.getMessage()));
             }
             row.set("Revision", edge.getRevision());
+            row.set("Color", ArangoNetworkStyle.computeColorIndex(collection));
 
         });
 

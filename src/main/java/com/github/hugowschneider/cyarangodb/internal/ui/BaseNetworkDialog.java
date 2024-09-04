@@ -198,8 +198,12 @@ public abstract class BaseNetworkDialog extends JDialog {
             protected Void doInBackground() throws Exception {
                 try {
                     List<RawJson> docs = connectionManager.execute(connectionName, query);
+                    if (docs.isEmpty()) {
+                        throw new ImportNetworkException("No results found for query");
+                    }
                     processQueryResult(docs, connectionManager.getArangoDatabase(connectionName), query);
                     updateHistoryList();
+                    BaseNetworkDialog.this.dispose();
                 } catch (ImportNetworkException e) {
                     JOptionPane.showMessageDialog(BaseNetworkDialog.this, e.getMessage(), "Error Importing Network",
                             JOptionPane.ERROR_MESSAGE);
@@ -214,7 +218,7 @@ public abstract class BaseNetworkDialog extends JDialog {
             @Override
             protected void done() {
                 waitDialog.dispose();
-                BaseNetworkDialog.this.dispose();
+
             }
         };
 

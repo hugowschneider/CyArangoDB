@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -109,21 +110,24 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		if (this.database == null) {
 			return;
 		}
-
-		Collection<CollectionEntity> collections = this.database
-				.getCollections(new CollectionsReadOptions().excludeSystem(true));
-		for (CollectionEntity collection : collections) {
-			if (collection.getType() == CollectionType.DOCUMENT) {
-				docCollectionNames.add(collection.getName());
-			} else if (collection.getType() == CollectionType.EDGES) {
-				edgeCollectionNames.add(collection.getName());
+		try {
+			Collection<CollectionEntity> collections = this.database
+					.getCollections(new CollectionsReadOptions().excludeSystem(true));
+			for (CollectionEntity collection : collections) {
+				if (collection.getType() == CollectionType.DOCUMENT) {
+					docCollectionNames.add(collection.getName());
+				} else if (collection.getType() == CollectionType.EDGES) {
+					edgeCollectionNames.add(collection.getName());
+				}
 			}
-		}
-		this.database.getGraphs().forEach(graph -> graphNames.add(graph.getName()));
+			this.database.getGraphs().forEach(graph -> graphNames.add(graph.getName()));
 
-		Collections.sort(docCollectionNames);
-		Collections.sort(edgeCollectionNames);
-		Collections.sort(graphNames);
+			Collections.sort(docCollectionNames);
+			Collections.sort(edgeCollectionNames);
+			Collections.sort(graphNames);
+		} catch (Exception e) {
+			LOGGER.error("Error while updating database completions", e);
+		}
 
 	}
 
@@ -292,8 +296,8 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		List<String> arangoCompletions = new ArrayList<>();
 		final List<Completion> completions;
 		if (Arrays.asList(AQL_KEYWORDS_BEFORE_COLLECTIONS).contains(previousWord)) {
-			arangoCompletions.addAll(filterList(docCollectionNames, currentWord));
-			arangoCompletions.addAll(filterList(edgeCollectionNames, currentWord));
+			arangoCompletions.addAll(filterList(docCollectionNames, currentWord).toList());
+			arangoCompletions.addAll(filterList(edgeCollectionNames, currentWord).toList());
 			completions = arangoCompletions.stream().sorted().map((str) -> new BasicCompletion(this, str))
 					.collect(Collectors.toList());
 		} else if (Arrays.asList(AQL_KEYWORDS_BEFORE_NODES).contains(previousWord)) {
@@ -311,10 +315,14 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 				}
 				query.append("SORT n._id ASC LIMIT 20 RETURN n._id");
 				ArangoCursor<String> ids = database.query(query.toString(), String.class, bindVars, null);
-				completions = ids.stream().map((s) -> new BasicCompletion(this, s)).collect(Collectors.toList());
+				completions = ids.stream().map((s) -> new BasicCompletion(this, String.format(
+						currentWord.startsWith("'") ? "'%1$s'"
+								: (currentWord.startsWith("\"") ? "\"%1$s\"" : "'%1$s'"),
+						s))).collect(Collectors.toList());
 			} else {
 				arangoCompletions
-						.addAll(filterList(docCollectionNames, currentWord.replace("'", "").replace("\"", "")));
+						.addAll(filterList(docCollectionNames, currentWord.replace("'", "").replace("\"", ""))
+								.toList());
 
 				completions = arangoCompletions.stream().sorted()
 						.map((str) -> new BasicCompletion(this, String.format(
@@ -323,6 +331,10 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 								str)))
 						.collect(Collectors.toList());
 			}
+		} else if (Arrays.asList(AQL_KEYWORDS_BEFORE_GRAPHS).contains(previousWord)) {
+			completions = filterList(graphNames, currentWord).sorted()
+					.map((str) -> new BasicCompletion(this, str))
+					.collect(Collectors.toList());
 		} else {
 			completions = Collections.emptyList();
 		}
@@ -341,10 +353,9 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		return completions;
 	}
 
-	protected List<String> filterList(List<String> list, String text) {
+	protected Stream<String> filterList(List<String> list, String text) {
 
-		return list.stream().filter((str) -> str.toLowerCase().startsWith(text.toLowerCase()))
-				.collect(Collectors.toList());
+		return list.stream().filter((str) -> str.toLowerCase().startsWith(text.toLowerCase()));
 	}
 
 	@Override
@@ -389,15 +400,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			if (text.equals(lastCompletionsAtText)) {
 				return lastParameterizedCompletionsAt;
 			}
-			List<String> arangoCompletions = new ArrayList<>();
-			List<Completion> completions = new ArrayList<>();
-			if (Arrays.asList(AQL_KEYWORDS_BEFORE_COLLECTIONS).contains(getPreviousWord())) {
-				arangoCompletions.addAll(filterList(docCollectionNames, text));
-				arangoCompletions.addAll(filterList(edgeCollectionNames, text));
-				completions = arangoCompletions.stream().sorted().map((str) -> new BasicCompletion(this, str))
-						.collect(Collectors.toList());
-			}
-
+			completions.addAll(completions);
 			// Get a list of all Completions matching the text.
 			completions.addAll(getCompletionByInputText(text));
 			lastCompletionsAtText = text;

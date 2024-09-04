@@ -158,7 +158,7 @@ public class NetworkManager {
             this.network = network;
             this.adapter = adapter;
         }
-
+        
         public CyNetwork getNetwork() {
             return network;
         }

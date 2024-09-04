@@ -204,26 +204,27 @@ public class AQLCompletionProviderTest {
         List<Completion> completions = completionProvider.getCompletions(textComponent);
 
         assertTrue(completions.size() >= 20);
-        List<String> values = Arrays.asList("imdb_vertices/1000",
-                "imdb_vertices/10000",
-                "imdb_vertices/10001",
-                "imdb_vertices/10002",
-                "imdb_vertices/10003",
-                "imdb_vertices/10004",
-                "imdb_vertices/10005",
-                "imdb_vertices/10006",
-                "imdb_vertices/10007",
-                "imdb_vertices/10008",
-                "imdb_vertices/10009",
-                "imdb_vertices/1001",
-                "imdb_vertices/10010",
-                "imdb_vertices/10011",
-                "imdb_vertices/10012",
-                "imdb_vertices/10013",
-                "imdb_vertices/10014",
-                "imdb_vertices/10015",
-                "imdb_vertices/10016",
-                "imdb_vertices/10017");
+        List<String> values = Arrays.asList(
+                "'imdb_vertices/1000'",
+                "'imdb_vertices/10000'",
+                "'imdb_vertices/10001'",
+                "'imdb_vertices/10002'",
+                "'imdb_vertices/10003'",
+                "'imdb_vertices/10004'",
+                "'imdb_vertices/10005'",
+                "'imdb_vertices/10006'",
+                "'imdb_vertices/10007'",
+                "'imdb_vertices/10008'",
+                "'imdb_vertices/10009'",
+                "'imdb_vertices/1001'",
+                "'imdb_vertices/10010'",
+                "'imdb_vertices/10011'",
+                "'imdb_vertices/10012'",
+                "'imdb_vertices/10013'",
+                "'imdb_vertices/10014'",
+                "'imdb_vertices/10015'",
+                "'imdb_vertices/10016'",
+                "'imdb_vertices/10017'");
         for (int i = 0; i < 20; i++) {
             assertEquals(values.get(i), completions.get(i).getReplacementText());
         }
@@ -239,29 +240,92 @@ public class AQLCompletionProviderTest {
         List<Completion> completions = completionProvider.getCompletions(textComponent);
 
         assertTrue(completions.size() >= 20);
-        List<String> values = Arrays.asList("imdb_vertices/2000",
-                "imdb_vertices/20000",
-                "imdb_vertices/20001",
-                "imdb_vertices/20002",
-                "imdb_vertices/20003",
-                "imdb_vertices/20004",
-                "imdb_vertices/20005",
-                "imdb_vertices/20006",
-                "imdb_vertices/20007",
-                "imdb_vertices/20008",
-                "imdb_vertices/20009",
-                "imdb_vertices/2001",
-                "imdb_vertices/20010",
-                "imdb_vertices/20011",
-                "imdb_vertices/20012",
-                "imdb_vertices/20013",
-                "imdb_vertices/20014",
-                "imdb_vertices/20015",
-                "imdb_vertices/20016",
-                "imdb_vertices/20017");
+        List<String> values = Arrays.asList(
+                "'imdb_vertices/2000'",
+                "'imdb_vertices/20000'",
+                "'imdb_vertices/20001'",
+                "'imdb_vertices/20002'",
+                "'imdb_vertices/20003'",
+                "'imdb_vertices/20004'",
+                "'imdb_vertices/20005'",
+                "'imdb_vertices/20006'",
+                "'imdb_vertices/20007'",
+                "'imdb_vertices/20008'",
+                "'imdb_vertices/20009'",
+                "'imdb_vertices/2001'",
+                "'imdb_vertices/20010'",
+                "'imdb_vertices/20011'",
+                "'imdb_vertices/20012'",
+                "'imdb_vertices/20013'",
+                "'imdb_vertices/20014'",
+                "'imdb_vertices/20015'",
+                "'imdb_vertices/20016'",
+                "'imdb_vertices/20017'");
         for (int i = 0; i < 20; i++) {
             assertEquals(values.get(i), completions.get(i).getReplacementText());
         }
+
+    }
+
+    @Test
+    @DisplayName("AQlCompletionProvider::getCompletions should return node ids after typing the colllection name respectiong quotes")
+    public void testGetCompletionsReturnNodeAfterCollectionDoubleQuote() throws BadLocationException {
+        String text = "FOR v IN 1..2 INBOUND \"imdb_vertices/";
+        textComponent.setText(text);
+        textComponent.setCaretPosition(text.length());
+        List<Completion> completions = completionProvider.getCompletions(textComponent);
+
+        assertTrue(completions.size() >= 20);
+        List<String> values = Arrays.asList(
+                "\"imdb_vertices/1000\"",
+                "\"imdb_vertices/10000\"",
+                "\"imdb_vertices/10001\"",
+                "\"imdb_vertices/10002\"",
+                "\"imdb_vertices/10003\"",
+                "\"imdb_vertices/10004\"",
+                "\"imdb_vertices/10005\"",
+                "\"imdb_vertices/10006\"",
+                "\"imdb_vertices/10007\"",
+                "\"imdb_vertices/10008\"",
+                "\"imdb_vertices/10009\"",
+                "\"imdb_vertices/1001\"",
+                "\"imdb_vertices/10010\"",
+                "\"imdb_vertices/10011\"",
+                "\"imdb_vertices/10012\"",
+                "\"imdb_vertices/10013\"",
+                "\"imdb_vertices/10014\"",
+                "\"imdb_vertices/10015\"",
+                "\"imdb_vertices/10016\"",
+                "\"imdb_vertices/10017\"");
+        for (int i = 0; i < 20; i++) {
+            assertEquals(values.get(i), completions.get(i).getReplacementText());
+        }
+
+    }
+
+    @Test
+    @DisplayName("AQlCompletionProvider::getCompletions should return graph names after typing the keyword GRAPH")
+    public void testGetCompletionsReturnGraphNames() throws BadLocationException {
+        String text = "FOR v IN 1..2 INBOUND 'imdb_vertices/1000' GRAPH ";
+        textComponent.setText(text);
+        textComponent.setCaretPosition(text.length());
+        List<Completion> completions = completionProvider.getCompletions(textComponent);
+
+        assertTrue(completions.size() >= 1);
+        assertEquals("imdb", completions.get(0).getReplacementText());
+
+    }
+
+    @Test
+    @DisplayName("AQlCompletionProvider::getCompletions should return graph names after typing the keyword GRAPH with filter")
+    public void testGetCompletionsReturnGraphNamesFilter() throws BadLocationException {
+        String text = "FOR v IN 1..2 INBOUND 'imdb_vertices/1000' GRAPH im";
+        textComponent.setText(text);
+        textComponent.setCaretPosition(text.length());
+        List<Completion> completions = completionProvider.getCompletions(textComponent);
+
+        assertTrue(completions.size() >= 1);
+        assertEquals("imdb", completions.get(0).getReplacementText());
 
     }
 

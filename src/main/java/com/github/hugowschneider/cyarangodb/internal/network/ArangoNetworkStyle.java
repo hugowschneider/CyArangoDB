@@ -40,7 +40,7 @@ public class ArangoNetworkStyle {
     };
 
     private VisualMappingManager visualMappingManager;
-    private VisualStyleFactory visualStyleFactory;
+    private VisualStyleFactory visualStyleFactory;    
     private VisualMappingFunctionFactory mappingFunctionFactoryContinues;
     private VisualMappingFunctionFactory mappingFunctionFactoryDiscrete;
     private VisualMappingFunctionFactory mappingFunctionPassthorugh;
