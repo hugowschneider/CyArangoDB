@@ -1,4 +1,4 @@
-name: CyArangoDB Build
+name: Build
 
 on:
   push:
