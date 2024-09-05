@@ -48,16 +48,14 @@ jobs:
           distribution: "microsoft"
           java-version: "21"
           cache: maven
-     
       - name: Compile
         run: mvn --batch-mode compile
-
       - name: Run tests
         run: mvn -B test
-      
       - name: Install
         run: mvn --batch-mode install -DskipTests
-
+      - name: Javadoc Jar
+        run: mvn --batch-mode javadoc:jar
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         env:

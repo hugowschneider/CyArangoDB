@@ -23,23 +23,66 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.hugowschneider.cyarangodb.internal.Constants;
 
+/**
+ * Adapts ArangoDB data to Cytoscape networks.
+ */
 public class ArangoNetworkAdapter {
+    /**
+     * Factory for creating Cytoscape networks.
+     */
     private CyNetworkFactory networkFactory;
+
+    /**
+     * The ArangoDB database instance.
+     */
     private ArangoDatabase database;
+
+    /**
+     * Map of loaded nodes by their IDs.
+     */
     private Map<String, BaseDocument> loadedNodes;
+
+    /**
+     * Map of Cytoscape nodes by their IDs.
+     */
     private Map<String, CyNode> nodes;
+
+    /**
+     * ObjectMapper for JSON processing.
+     */
     private ObjectMapper mapper;
+
+    /**
+     * List of edge IDs.
+     */
     private List<String> edges;
+
+    /**
+     * The Cytoscape network.
+     */
     private CyNetwork network;
 
+    /**
+     * Constructs a new ArangoNetworkAdapter.
+     *
+     * @param database       the ArangoDB database instance
+     * @param networkFactory the factory for creating Cytoscape networks
+     */
     public ArangoNetworkAdapter(ArangoDatabase database, CyNetworkFactory networkFactory) {
         this.mapper = new ObjectMapper();
         this.loadedNodes = new HashMap<>();
         this.nodes = new HashMap<>();
         this.edges = new ArrayList<>();
         this.networkFactory = networkFactory;
+        this.database = database;
     }
 
+    /**
+     * Retrieves a node from the database or returns a cached node if it has already been loaded.
+     *
+     * @param id the ID of the node
+     * @return the BaseDocument representing the node
+     */
     public BaseDocument getOrRetriveNode(String id) {
         if (this.loadedNodes.get(id) != null) {
             return this.loadedNodes.get(id);
@@ -54,18 +97,28 @@ public class ArangoNetworkAdapter {
         }
     }
 
+    /**
+     * Gets the name of a document.
+     *
+     * @param doc the document
+     * @return the name of the document
+     */
     private String getName(BaseDocument doc) {
-
         for (String key : doc.getProperties().keySet()) {
             if (key.equalsIgnoreCase(Constants.NodeColumns.NAME)) {
                 return (String) doc.getAttribute(key);
             }
         }
-
         return doc.getKey();
-
     }
 
+    /**
+     * Retrieves or creates a Cytoscape node for the given ID.
+     *
+     * @param id      the ID of the node
+     * @param network the Cytoscape network
+     * @return the Cytoscape node
+     */
     public CyNode getOrCreateCyNode(String id, CyNetwork network) {
         if (nodes.get(id) != null) {
             return nodes.get(id);
@@ -95,52 +148,86 @@ public class ArangoNetworkAdapter {
 
             return node;
         }
-
     }
 
+    /**
+     * Adapts a list of RawJson documents representing edges to a Cytoscape network.
+     *
+     * @param docs the list of RawJson documents
+     * @return the Cytoscape network
+     */
     public CyNetwork adaptEdges(List<RawJson> docs) {
-
         List<BaseEdgeDocument> edges = jsonToEdges(docs);
-
         return adapt(edges);
-
     }
 
+    /**
+     * Converts a list of RawJson documents to a list of BaseEdgeDocument objects.
+     *
+     * @param docs the list of RawJson documents
+     * @return the list of BaseEdgeDocument objects
+     */
     private List<BaseEdgeDocument> jsonToEdges(List<RawJson> docs) {
-        List<BaseEdgeDocument> edges = docs.stream().map(doc -> {
+        return docs.stream().map(doc -> {
             try {
                 return mapper.readValue(doc.get(), BaseEdgeDocument.class);
             } catch (Exception e) {
                 throw new RuntimeException("Failed to parse document", e);
             }
         }).collect(Collectors.toList());
-        return edges;
     }
 
+    /**
+     * Represents a path consisting of edges and nodes.
+     */
     private static class Path {
+        /**
+         * The list of edges in the path.
+         */
         private List<BaseEdgeDocument> edges;
+
+        /**
+         * The list of nodes in the path.
+         */
         private List<BaseDocument> nodes;
 
+        /**
+         * Constructs a new Path.
+         */
         public Path() {
             this.edges = new ArrayList<>();
             this.nodes = new ArrayList<>();
         }
 
+        /**
+         * Gets the list of edges in the path.
+         *
+         * @return the list of edges
+         */
         public List<BaseEdgeDocument> getEdges() {
             return edges;
         }
 
+        /**
+         * Gets the list of nodes in the path.
+         *
+         * @return the list of nodes
+         */
         public List<BaseDocument> getNodes() {
             return nodes;
         }
-
     }
 
+    /**
+     * Converts a list of RawJson documents to a Path object.
+     *
+     * @param docs the list of RawJson documents
+     * @return the Path object
+     */
     private Path jsonToPath(List<RawJson> docs) {
         Path path = new Path();
 
         docs.forEach(doc -> {
-
             try {
                 // Parse RawJson string into a JSON object
                 JsonNode jsonNode = mapper.readTree(doc.get());
@@ -170,6 +257,12 @@ public class ArangoNetworkAdapter {
         return path;
     }
 
+    /**
+     * Adapts a list of RawJson documents representing paths to a Cytoscape network.
+     *
+     * @param docs the list of RawJson documents
+     * @return the Cytoscape network
+     */
     public CyNetwork adaptPaths(List<RawJson> docs) {
         Path path = jsonToPath(docs);
         path.getNodes().forEach((vertex) -> {
@@ -178,6 +271,12 @@ public class ArangoNetworkAdapter {
         return adapt(path.getEdges());
     }
 
+    /**
+     * Adapts a list of BaseEdgeDocument objects to a Cytoscape network.
+     *
+     * @param edges the list of BaseEdgeDocument objects
+     * @return the Cytoscape network
+     */
     private CyNetwork adapt(Iterable<BaseEdgeDocument> edges) {
         network = networkFactory.createNetwork();
         CyTable cyNodeTable = network.getDefaultNodeTable();
@@ -204,7 +303,6 @@ public class ArangoNetworkAdapter {
         });
 
         edges.forEach((edge) -> {
-
             if (this.edges.contains(edge.getId())) {
                 return;
             }
@@ -221,12 +319,18 @@ public class ArangoNetworkAdapter {
             String collection = edge.getId().split("/")[0];
             CyRow row = cyEdgeTable.getRow(cyEdge.getSUID());
             addEdgeAttributes(edge, collection, row);
-
         });
 
         return network;
     }
 
+    /**
+     * Adds attributes to a Cytoscape edge.
+     *
+     * @param edge       the BaseEdgeDocument representing the edge
+     * @param collection the collection name
+     * @param row        the Cytoscape row to add attributes to
+     */
     private void addEdgeAttributes(BaseEdgeDocument edge, String collection, CyRow row) {
         row.set(Constants.EdgeColumns.ID, edge.getId());
         row.set(Constants.EdgeColumns.COLLECTION, collection);
@@ -243,6 +347,13 @@ public class ArangoNetworkAdapter {
         row.set(Constants.EdgeColumns.COLOR, ArangoNetworkStyle.computeColorIndex(collection));
     }
 
+    /**
+     * Expands a network with a list of paths.
+     *
+     * @param docs   the list of RawJson documents representing paths
+     * @param nodeId the ID of the node to expand from
+     * @return the list of new Cytoscape nodes
+     */
     public List<CyNode> expandWithPath(List<RawJson> docs, String nodeId) {
         Path path = jsonToPath(docs);
         path.getNodes().forEach((vertex) -> {
@@ -253,11 +364,25 @@ public class ArangoNetworkAdapter {
         return expand(path.getEdges(), nodeId);
     }
 
+    /**
+     * Expands a network with a list of edges.
+     *
+     * @param docs   the list of RawJson documents representing edges
+     * @param nodeId the ID of the node to expand from
+     * @return the list of new Cytoscape nodes
+     */
     public List<CyNode> expandWithEdges(List<RawJson> docs, String nodeId) {
         List<BaseEdgeDocument> edges = jsonToEdges(docs);
         return expand(edges, nodeId);
     }
 
+    /**
+     * Expands a network with a list of edges.
+     *
+     * @param edges  the list of BaseEdgeDocument objects
+     * @param nodeId the ID of the node to expand from
+     * @return the list of new Cytoscape nodes
+     */
     private List<CyNode> expand(List<BaseEdgeDocument> edges, String nodeId) {
         List<CyNode> newNodes = new ArrayList<>();
         newNodes.add(nodes.get(nodeId));
@@ -266,7 +391,6 @@ public class ArangoNetworkAdapter {
         });
         CyTable cyEdgeTable = network.getDefaultEdgeTable();
         edges.forEach((edge) -> {
-
             if (this.edges.contains(edge.getId())) {
                 return;
             }
@@ -292,7 +416,6 @@ public class ArangoNetworkAdapter {
             String collection = edge.getId().split("/")[0];
             CyRow row = cyEdgeTable.getRow(cyEdge.getSUID());
             addEdgeAttributes(edge, collection, row);
-
         });
 
         return newNodes;

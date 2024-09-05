@@ -24,17 +24,54 @@ import org.fife.ui.rtextarea.RTextScrollPane;
 import com.github.hugowschneider.cyarangodb.internal.Constants;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
 
+/**
+ * A dialog that displays detailed information about a node or edge in a network.
+ */
 public class DetailDialog extends JDialog {
+    /**
+     * Label to display the ID.
+     */
     private JLabel idLabel;
+
+    /**
+     * Label to display the key.
+     */
     private JLabel keyLabel;
+
+    /**
+     * Label to display the collection.
+     */
     private JLabel collectionLabel;
+
+    /**
+     * Label to display the source node of an edge.
+     */
     private JLabel fromLabel;
+
+    /**
+     * Label to display the target node of an edge.
+     */
     private JLabel toLabel;
+
+    /**
+     * Text area to display JSON data.
+     */
     private RSyntaxTextArea jsonTextArea;
+
+    /**
+     * Button to close the dialog.
+     */
     private JButton closeButton;
 
-    public DetailDialog(ConnectionManager connectionManager, JFrame parent,
-            CyEdge edge, CyNetwork network) {
+    /**
+     * Constructs a new DetailDialog for an edge.
+     *
+     * @param connectionManager the connection manager
+     * @param parent            the parent frame
+     * @param edge              the edge to display details for
+     * @param network           the network containing the edge
+     */
+    public DetailDialog(ConnectionManager connectionManager, JFrame parent, CyEdge edge, CyNetwork network) {
         this(connectionManager, parent, network, true);
 
         CyRow row = network.getDefaultEdgeTable().getRow(edge.getSUID());
@@ -46,8 +83,15 @@ public class DetailDialog extends JDialog {
         jsonTextArea.setText(row.get(Constants.EdgeColumns.DATA, String.class));
     }
 
-    public DetailDialog(ConnectionManager connectionManager, JFrame parent,
-            CyNode node, CyNetwork network) {
+    /**
+     * Constructs a new DetailDialog for a node.
+     *
+     * @param connectionManager the connection manager
+     * @param parent            the parent frame
+     * @param node              the node to display details for
+     * @param network           the network containing the node
+     */
+    public DetailDialog(ConnectionManager connectionManager, JFrame parent, CyNode node, CyNetwork network) {
         this(connectionManager, parent, network, false);
         CyRow row = network.getDefaultNodeTable().getRow(node.getSUID());
         idLabel.setText(row.get(Constants.NodeColumns.ID, String.class));
@@ -56,8 +100,15 @@ public class DetailDialog extends JDialog {
         jsonTextArea.setText(row.get(Constants.NodeColumns.DATA, String.class));
     }
 
-    private DetailDialog(ConnectionManager connectionManager, JFrame parent,
-            CyNetwork network, boolean isEdge) {
+    /**
+     * Constructs a new DetailDialog.
+     *
+     * @param connectionManager the connection manager
+     * @param parent            the parent frame
+     * @param network           the network containing the node or edge
+     * @param isEdge            true if the dialog is for an edge, false if it is for a node
+     */
+    private DetailDialog(ConnectionManager connectionManager, JFrame parent, CyNetwork network, boolean isEdge) {
         super(parent, "Detail Dialog", true);
         setLayout(new BorderLayout());
 
@@ -104,7 +155,6 @@ public class DetailDialog extends JDialog {
         refreshButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // Define refresh behavior here
                 refresh();
             }
         });
@@ -118,10 +168,21 @@ public class DetailDialog extends JDialog {
         setLocationRelativeTo(parent);
     }
 
+    /**
+     * Refreshes the dialog with updated information.
+     */
     private void refresh() {
         // Define refresh behavior here
     }
 
+    /**
+     * Creates a panel containing a label and a value label.
+     *
+     * @param labelText  the text for the label
+     * @param valueText  the text for the value label
+     * @param valueLabel the JLabel to display the value
+     * @return the created panel
+     */
     private JPanel createLabelPanel(String labelText, String valueText, JLabel valueLabel) {
         JPanel panel = new JPanel(new BorderLayout());
         JLabel label = new JLabel(labelText);

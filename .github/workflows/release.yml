@@ -24,6 +24,8 @@ jobs:
         run: mvn --batch-mode compile
       - name: Install
         run: mvn --batch-mode install -DskipTests
+      - name: Javadoc Jar
+        run: mvn --batch-mode javadoc:jar
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

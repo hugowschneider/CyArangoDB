@@ -43,16 +43,53 @@ import com.github.hugowschneider.cyarangodb.internal.flex.AqlTokenMaker;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.github.hugowschneider.cyarangodb.internal.aql.AQLCompletionProvider;
 
+/**
+ * An abstract base class for dialogs that interact with ArangoDB networks.
+ * Provides common functionality for executing queries and managing query history.
+ */
 public abstract class BaseNetworkDialog extends JDialog {
+    /**
+     * The connection manager responsible for managing database connections.
+     */
     protected final ConnectionManager connectionManager;
+
+    /**
+     * The dropdown for selecting a connection.
+     */
     protected final JComboBox<String> connectionDropdown;
+
+    /**
+     * The text area for entering AQL queries.
+     */
     protected final RSyntaxTextArea queryTextArea;
+
+    /**
+     * The table for displaying query history.
+     */
     protected final JTable historyTable;
+
+    /**
+     * The model for the history table.
+     */
     protected final DefaultTableModel historyTableModel;
+
+    /**
+     * The completion provider for AQL auto-completion.
+     */
     private AQLCompletionProvider completionProvider;
 
+    /**
+     * The logger for logging messages.
+     */
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseNetworkDialog.class);
 
+    /**
+     * Constructs a new BaseNetworkDialog.
+     *
+     * @param connectionManager the connection manager
+     * @param parentFrame       the parent frame
+     * @param title             the title of the dialog
+     */
     public BaseNetworkDialog(ConnectionManager connectionManager, JFrame parentFrame, String title) {
         super(parentFrame, title, true);
         this.connectionManager = connectionManager;
@@ -156,7 +193,12 @@ public abstract class BaseNetworkDialog extends JDialog {
                 .setDatabase(connectionManager.getArangoDatabase((String) connectionDropdown.getSelectedItem()));
     }
 
-    private void setupCodeStyles(RSyntaxTextArea queryTextArea2) {
+    /**
+     * Sets up the code styles for the query text area.
+     *
+     * @param queryTextArea the query text area
+     */
+    private void setupCodeStyles(RSyntaxTextArea queryTextArea) {
         Theme theme;
         try {
             URL themeURL = getClass().getClassLoader().getResource("theme.xml");
@@ -167,17 +209,36 @@ public abstract class BaseNetworkDialog extends JDialog {
         } catch (IOException e) {
             LOGGER.error(e.getMessage(), e);
         }
-
     }
 
+    /**
+     * Renders the top component of the dialog.
+     *
+     * @return the top component
+     */
     protected abstract Component renderTopComponent();
 
+    /**
+     * Renders the center component of the dialog.
+     *
+     * @return the center component
+     */
     protected abstract Component renderCenterComponent();
 
+    /**
+     * Returns the label for the execute button.
+     *
+     * @return the execute button label
+     */
     protected String getExecuteButtonLabel() {
         return "Import";
     }
 
+    /**
+     * Sets up auto-completion for the query text area.
+     *
+     * @param textArea the query text area
+     */
     protected void setupAutoCompletion(RSyntaxTextArea textArea) {
         this.completionProvider = new AQLCompletionProvider(null);
 
@@ -186,9 +247,20 @@ public abstract class BaseNetworkDialog extends JDialog {
         ac.install(textArea);
     }
 
+    /**
+     * Processes the query result.
+     *
+     * @param docs     the list of RawJson documents
+     * @param database the ArangoDatabase instance
+     * @param query    the query string
+     * @throws ImportNetworkException if an error occurs during network import
+     */
     protected abstract void processQueryResult(List<RawJson> docs, ArangoDatabase database, String query)
             throws ImportNetworkException;
 
+    /**
+     * Executes the query entered in the query text area.
+     */
     protected void executeQuery() {
         String query = queryTextArea.getText();
         String connectionName = (String) connectionDropdown.getSelectedItem();
@@ -219,7 +291,6 @@ public abstract class BaseNetworkDialog extends JDialog {
             @Override
             protected void done() {
                 waitDialog.dispose();
-
             }
         };
 
@@ -227,6 +298,9 @@ public abstract class BaseNetworkDialog extends JDialog {
         waitDialog.setVisible(true);
     }
 
+    /**
+     * Updates the history list with the latest query history.
+     */
     protected void updateHistoryList() {
         String connectionName = (String) connectionDropdown.getSelectedItem();
         List<ConnectionDetails.QueryHistory> history = connectionManager.getQueryHistory(connectionName);
@@ -240,6 +314,11 @@ public abstract class BaseNetworkDialog extends JDialog {
         }
     }
 
+    /**
+     * Creates a wait dialog to display while the query is being processed.
+     *
+     * @return the wait dialog
+     */
     private JDialog createWaitDialog() {
         JDialog waitDialog = new JDialog(this, "Please Wait", true);
         waitDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
@@ -249,6 +328,9 @@ public abstract class BaseNetworkDialog extends JDialog {
         return waitDialog;
     }
 
+    /**
+     * Runs the selected query from the history list.
+     */
     protected void runHistory() {
         int row = historyTable.getSelectedRow();
         String connectionName = (String) connectionDropdown.getSelectedItem();
@@ -281,12 +363,18 @@ public abstract class BaseNetworkDialog extends JDialog {
         waitDialog.setVisible(true);
     }
 
+    /**
+     * Copies the selected query from the history list to the query text area.
+     */
     protected void copyQuery() {
         int row = historyTable.getSelectedRow();
         String query = (String) historyTableModel.getValueAt(row, 1);
         queryTextArea.setText(query);
     }
 
+    /**
+     * Deletes the selected query from the history list.
+     */
     protected void deleteHistory() {
         int row = historyTable.getSelectedRow();
         String connectionName = (String) connectionDropdown.getSelectedItem();

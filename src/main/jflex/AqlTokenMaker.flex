@@ -20,9 +20,20 @@ import org.fife.ui.rsyntaxtextarea.*;
    /** the textposition at the last state to be included in yytext */
    private int zzPushbackPos;
 
+   /**
+   * Creates a new scanner
+   *
+   * @param in the java.io.Reader to read input from.
+   */
    public AqlTokenMaker() {
    }
 
+   /**
+   * Creates a new scanner.
+   * There is also java.io.Reader version of this constructor.
+   *
+   * @param in the java.io.Inputstream to read input from.
+   */
    public Token getTokenList(Segment text, int initialTokenType, int startOffset) {
       resetTokenList();
       this.offsetShift = -text.offset + startOffset;
@@ -48,21 +59,40 @@ import org.fife.ui.rsyntaxtextarea.*;
       }
    }
 
+   /**
+   * Adds the token to the token list.
+   * @param tokenType
+   */
    private void addToken(int tokenType) {
       addToken(zzStartRead, zzMarkedPos - 1, tokenType);
    }
 
+   
+   /**
+   * Adds the token to the token list.
+   * @param start
+   * @param end
+   * @param tokenType
+   */
    private void addToken(int start, int end, int tokenType) {
       int so = start + offsetShift;
       addToken(zzBuffer, start, end, tokenType, so);
    }
 
+   /**
+   * Adds the token to the token list.
+   * @param array
+   * @param start
+   * @param end
+   * @param tokenType
+   * @param startOffset
+   */
    public void addToken(char[] array, int start, int end, int tokenType, int startOffset) {
       super.addToken(array, start, end, tokenType, startOffset);
       zzStartRead = zzMarkedPos;
    }
 
-      /**   
+   /**   
     * Refills the input buffer.   
     *   
     * @return      <code>true</code> if EOF was reached, otherwise   

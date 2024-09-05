@@ -6,7 +6,23 @@ import java.awt.Image;
 import java.io.IOException;
 import java.net.URL;
 
+/**
+ * Utility class for UI-related operations.
+ */
 public class UIUtils {
+
+    /**
+     * Constructs a new UIUtils.
+     */
+    public UIUtils() {
+    }
+
+    /**
+     * Sets the icon image of a window.
+     *
+     * @param frame        the window frame to set the icon image for
+     * @param resourcePath the path to the icon image resource
+     */
     public static void setIconImage(Window frame, String resourcePath) {
         try {
             URL iconURL = frame.getClass().getClassLoader().getResource(resourcePath);

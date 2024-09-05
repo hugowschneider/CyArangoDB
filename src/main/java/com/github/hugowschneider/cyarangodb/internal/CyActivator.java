@@ -36,10 +36,28 @@ import com.github.hugowschneider.cyarangodb.internal.ui.task.EdgeDetailContextMe
 import com.github.hugowschneider.cyarangodb.internal.ui.task.ExpandNodeContextMenuFactory;
 import com.github.hugowschneider.cyarangodb.internal.ui.task.NodeDetailContextMenuFactory;
 
+/**
+ * The activator for the CyArangoDB application.
+ */
 public class CyActivator extends AbstractCyActivator {
 
+	/**
+	 * The logger for the activator.
+	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CyActivator.class);
 
+	/**
+	 * Creates a new CyActivator.
+	 */
+	public CyActivator() {
+		super();
+	}
+	/**
+	 * Starts the CyArangoDB application.
+	 *
+	 * @param context the bundle context
+	 * @throws Exception if an error occurs while starting the application
+	 */
 	@Override
 	public void start(BundleContext context) throws Exception {
 

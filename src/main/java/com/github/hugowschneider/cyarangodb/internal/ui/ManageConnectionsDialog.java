@@ -30,16 +30,83 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.Map;
 
+/**
+ * Represents a dialog for managing connections to ArangoDB.
+ * This dialog allows the user to add, edit, delete, and validate connections.
+ * It provides a graphical interface for entering connection details such as
+ * name, host, port, username, password, and database.
+ * The dialog displays a table with existing connections and allows the user to
+ * perform actions on each connection, such as editing, deleting, and
+ * validating.
+ * The dialog communicates with a ConnectionManager to perform the actual
+ * operations on the connections.
+ * 
+ * Usage:
+ * 1. Create an instance of ManageConnectionsDialog by passing a
+ * ConnectionManager and a parent Frame.
+ * 2. The dialog will be displayed as a modal dialog.
+ * 3. The user can interact with the dialog to add, edit, delete, and validate
+ * connections.
+ * 4. The dialog communicates with the ConnectionManager to perform the
+ * requested operations.
+ * 5. The dialog displays a table with existing connections and allows the user
+ * to perform actions on each connection.
+ * 6. The user can save the connection details by clicking the "Save" button.
+ * 7. The user can validate the connection by clicking the "Validate" button.
+ * 8. The user can cancel the operation by clicking the "Cancel" button.
+ * 9. The dialog provides input fields for entering connection details such as
+ * name, host, port, username, password, and database.
+ * 10. The dialog provides buttons for performing actions on each connection,
+ * such as editing, deleting, and validating.
+ * 11. The dialog displays validation messages to inform the user about the
+ * status of the connection.
+ * 12. The dialog uses a custom DocumentFilter to allow only numeric input for
+ * the port field.
+ * 
+ * Example usage:
+ * ConnectionManager connectionManager = new ConnectionManager();
+ * Frame parent = new Frame();
+ * ManageConnectionsDialog dialog = new
+ * ManageConnectionsDialog(connectionManager, parent);
+ * dialog.setVisible(true);
+ */
 public class ManageConnectionsDialog extends JDialog {
+    /**
+     * The logger for this class.
+     */
     static final Logger LOGGER = LoggerFactory.getLogger(ManageConnectionsDialog.class);
 
+    /**
+     * Connection table for displaying existing connections.
+     */
     private JTable connectionTable;
+    /**
+     * Table model for the connection table.
+     */
     private DefaultTableModel tableModel;
+    /**
+     * Text field for entering the connection name.
+     */
     private JTextField nameField, hostField, portField, usernameField, passwordField, databaseField;
+    /**
+     * Buttons for saving, validating, and canceling the operation.
+     */
     private JButton saveButton, validateButton, cancelButton;
+    /**
+     * The connection manager for managing connections.
+     */
     private ConnectionManager connectionManager;
+    /**
+     * The name of the connection being edited.
+     */
     private String editedConnectionName = null;
 
+    /**
+     * Constructs a new dialog for managing connections.
+     * 
+     * @param connectionManager the connection manager
+     * @param parent            the parent frame
+     */
     public ManageConnectionsDialog(ConnectionManager connectionManager, Frame parent) {
 
         super(parent, "ArangoDB Connection Manager", true);

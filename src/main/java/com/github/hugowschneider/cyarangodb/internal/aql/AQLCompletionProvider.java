@@ -30,22 +30,56 @@ import com.arangodb.entity.CollectionEntity;
 import com.arangodb.entity.CollectionType;
 import com.arangodb.model.CollectionsReadOptions;
 
+/**
+ * AQLCompletionProvider is a class that provides auto-completion suggestions for AQL (ArangoDB Query Language) in a text component.
+ * It extends the AbstractCompletionProvider class.
+ * 
+ * The AQLCompletionProvider class contains arrays of AQL keywords and functions, as well as collections, edges, and graph names.
+ * It also has methods to update the database completions, get the already entered text, get parameterized completions, and get completions at a specific position.
+ * The class uses the ArangoDatabase class to interact with the ArangoDB database.
+ * 
+ * AQLCompletionProvider is typically used in conjunction with a JTextComponent to provide auto-completion suggestions while typing AQL queries.
+ * It can be initialized with an ArangoDatabase instance and can be updated with a new ArangoDatabase instance to reflect changes in the database.
+ * 
+ * The class provides context-aware completions based on the previous word entered by the user.
+ * It filters the completions based on the current word and the previous word, and returns a list of completions sorted alphabetically.
+ * 
+ * AQLCompletionProvider also inherits the basic completion functionality from the AbstractCompletionProvider class.
+ * It adds AQL keywords and functions as basic completions, and provides parameterized completions for AQL functions.
+ * 
+ * Note: This class requires the ArangoDB Java driver to be included in the project.
+ */
 public class AQLCompletionProvider extends AbstractCompletionProvider {
 
+	/**
+	 * The logger for the AQLCompletionProvider class.
+	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(AQLCompletionProvider.class);
 
+	/**
+	 * AQL keywords that can appear before collections in an AQL query.
+	 */
 	private static final String[] AQL_KEYWORDS_BEFORE_COLLECTIONS = {
 			"IN"
 	};
 
+	/**
+	 * AQL keywords that can appear before nodes in an AQL query.
+	 */
 	private static final String[] AQL_KEYWORDS_BEFORE_NODES = {
 			"ANY", "INBOUND", "OUTBOUND", "ALL_SHORTEST_PATHS", "K_PATHS", "K_SHORTEST_PATHS", "SHORTEST_PATH"
 	};
 
+	/**
+	 * AQL keywords that can appear before graphs in an AQL query.
+	 */
 	private static final String[] AQL_KEYWORDS_BEFORE_GRAPHS = {
 			"GRAPH"
 	};
 
+	/**
+	 * AQL keywords used in AQL queries.
+	 */
 	private static final String[] AQL_KEYWORDS = {
 			"AGGREGATE", "ALL", "ALL_SHORTEST_PATHS", "AND", "ANY", "ASC", "COLLECT",
 			"DESC", "DISTINCT", "FALSE", "FILTER", "FOR", "GRAPH", "IN", "INBOUND",
@@ -53,6 +87,10 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			"NONE", "NOT", "NULL", "OR", "OUTBOUND", "REMOVE", "REPLACE", "RETURN",
 			"SHORTEST_PATH", "SORT", "TRUE", "UPDATE", "UPSERT", "WINDOW", "WITH"
 	};
+
+	/**
+	 * AQL functions used in AQL queries.
+	 */
 	private static final String[] AQL_FUNCTIONS = {
 			"LENGTH", "COUNT", "SUM", "MIN", "MAX", "AVERAGE", "CONCAT", "SUBSTRING",
 			"CONTAINS", "UPPER", "LOWER", "RANDOM_TOKEN",
@@ -83,15 +121,42 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	 */
 	private List<Completion> lastParameterizedCompletionsAt;
 
+	/**
+	 * Arango Database connection 
+	 */
 	private ArangoDatabase database;
 
+	/**
+	 * Segment used to get the already entered text.
+	 */
 	private Segment seg;
 
+	/**
+	 * List of document collection names.
+	 */
 	private List<String> docCollectionNames;
+
+	/**
+	 * List of edge collection names.
+	 */
 	private List<String> edgeCollectionNames;
+
+	/**
+	 * List of graph names.
+	 */
 	private List<String> graphNames;
+
+	/**
+	 * The previous word entered by the user.
+	 */
 	private String previousWord;
 
+	/**
+	 * AQLCompletionProvider is responsible for providing code completion suggestions for AQL (ArangoDB Query Language).
+	 * It initializes the AQL completions and updates the database completions.
+	 *
+	 * @param database the ArangoDatabase instance used for querying the database
+	 */
 	public AQLCompletionProvider(ArangoDatabase database) {
 
 		seg = new Segment();
@@ -103,6 +168,9 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		updateDatabaseCompletions();
 	}
 
+	/**
+	 * Updates the completions based on the collections and graphs in the database.
+	 */
 	private void updateDatabaseCompletions() {
 		docCollectionNames = new ArrayList<>();
 		edgeCollectionNames = new ArrayList<>();
@@ -131,15 +199,28 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	}
 
+	/**
+	 * Returns the ArangoDatabase instance used for querying the database.
+	 *
+	 * @return the ArangoDatabase instance
+	 */
 	public ArangoDatabase getDatabase() {
 		return database;
 	}
 
+	/**
+	 * Sets the ArangoDatabase instance used for querying the database.
+	 *
+	 * @param database the ArangoDatabase instance
+	 */
 	public void setDatabase(ArangoDatabase database) {
 		this.database = database;
 		updateDatabaseCompletions();
 	}
 
+	/**
+	 * Initializes the AQL completions with AQL keywords and functions.
+	 */
 	private void initializeAQLCompletions() {
 		for (String keyword : AQL_KEYWORDS) {
 			addCompletion(new BasicCompletion(this, keyword));
@@ -149,6 +230,13 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		}
 	}
 
+	/**
+	 * Returns the text that has already been entered in the text component.
+	 * This method is used to determine the context for providing completions.
+	 *
+	 * @param comp the text component
+	 * @return the text that has already been entered
+	 */
 	@Override
 	public String getAlreadyEnteredText(JTextComponent comp) {
 
@@ -215,6 +303,13 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	}
 
+	/**
+	 * Returns the parameterized completions for the specified text component.
+	 * This method is used to provide completions for AQL functions that require parameters.
+	 *
+	 * @param tc the text component
+	 * @return a list of parameterized completions
+	 */
 	@Override
 	public List<ParameterizedCompletion> getParameterizedCompletions(
 			JTextComponent tc) {
@@ -292,6 +387,14 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		return Character.isLetterOrDigit(ch) || ch == '_' || ch == '`' || ch == '\'' || ch == '"' || ch == '/';
 	}
 
+	/**
+	 * Returns the completions that are context-aware based on the current word and the previous word.
+	 * This method is used to provide completions that are relevant to the context in which they are used.
+	 *
+	 * @param currentWord  the current word being entered
+	 * @param previousWord the previous word entered by the user
+	 * @return a list of completions that are context-aware
+	 */
 	private List<Completion> getContexAwareeCompletions(String currentWord, String previousWord) {
 		List<String> arangoCompletions = new ArrayList<>();
 		final List<Completion> completions;
@@ -343,6 +446,13 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	}
 
+	/**
+	 * Returns the completions for the specified text component.
+	 * This method is used to provide completions based on the text entered by the user.
+	 *
+	 * @param arg0 the text component
+	 * @return a list of completions
+	 */
 	@Override
 	public List<Completion> getCompletions(JTextComponent arg0) {
 
@@ -353,11 +463,27 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		return completions;
 	}
 
+	/**
+	 * Filters the specified list based on the specified text.
+	 * This method is used to filter a list of strings based on a specified text.
+	 *
+	 * @param list the list of strings to filter
+	 * @param text the text to filter by
+	 * @return a stream of strings that match the specified text
+	 */
 	protected Stream<String> filterList(List<String> list, String text) {
 
 		return list.stream().filter((str) -> str.toLowerCase().startsWith(text.toLowerCase()));
 	}
 
+	/**
+	 * Returns the completions at the specified position in the text component.
+	 * This method is used to provide completions at a specific position in the text.
+	 *
+	 * @param tc the text component
+	 * @param p  the position in the text component
+	 * @return a list of completions at the specified position
+	 */
 	@Override
 	public List<Completion> getCompletionsAt(JTextComponent tc, Point p) {
 
@@ -415,6 +541,11 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	}
 
+	/**
+	 * Returns the previous word entered by the user.
+	 *
+	 * @return the previous word
+	 */
 	public String getPreviousWord() {
 		return previousWord;
 	}

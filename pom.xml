@@ -21,7 +21,7 @@
         <pax-logging.version>1.5.3</pax-logging.version>
         <junit.version>5.11.0</junit.version>
     </properties>
-    
+
 
     <groupId>com.github.hugowschneider</groupId>
     <artifactId>CyArangoDB</artifactId>
@@ -53,6 +53,15 @@
                     <encoding>UTF-8</encoding>
                     <source>11</source>
                     <target>11</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <excludePackageNames>com.github.hugowschneider.cyarangodb.internal.flex</excludePackageNames>
                 </configuration>
             </plugin>
             <plugin>
@@ -103,7 +112,7 @@
                 <configuration>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
                     <reportsDirectory>${project.build.directory}/test-logs</reportsDirectory>
-                  </configuration>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

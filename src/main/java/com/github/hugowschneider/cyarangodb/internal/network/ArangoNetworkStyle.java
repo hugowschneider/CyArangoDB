@@ -18,8 +18,14 @@ import org.cytoscape.view.vizmap.VisualStyle;
 import org.cytoscape.view.vizmap.VisualStyleFactory;
 import org.cytoscape.view.vizmap.mappings.DiscreteMapping;
 
+/**
+ * A class for managing the visual style of ArangoDB networks in Cytoscape.
+ */
 public class ArangoNetworkStyle {
 
+    /**
+     * The color table for node and edge colors.
+     */
     private static final Color[] COLOR_TABLE = {
             new Color(0, 128, 128), // Teal
             new Color(0, 255, 255), // Cyan
@@ -39,13 +45,35 @@ public class ArangoNetworkStyle {
             new Color(144, 238, 144) // Light Green
     };
 
+    /**
+     * The visual mapping manager for Cytoscape.
+     */
     private VisualMappingManager visualMappingManager;
+    /**
+     * The visual style factory for Cytoscape.
+     */
     private VisualStyleFactory visualStyleFactory;
+    /**
+     * The discrete mapping function factory for Cytoscape.
+     */
     private VisualMappingFunctionFactory mappingFunctionFactoryDiscrete;
+    /**
+     * The passthrough mapping function factory for Cytoscape.
+     */
     private VisualMappingFunctionFactory mappingFunctionPassthorugh;
-
+    /**
+     * The name of the ArangoDB visual style.
+     */
     private final String STYLE_NAME = "ArangoDB Style";
 
+    /**
+     * Constructs a new ArangoNetworkStyle.
+     *
+     * @param visualMappingManager     the visual mapping manager
+     * @param visualStyleFactory       the visual style factory
+     * @param mappingFunctionFactoryDiscrete the discrete mapping function factory
+     * @param mappingFunctionPassthorugh the passthrough mapping function factory
+     */
     public ArangoNetworkStyle(VisualMappingManager visualMappingManager,
             VisualStyleFactory visualStyleFactory,
             VisualMappingFunctionFactory mappingFunctionFactoryDiscrete,
@@ -59,6 +87,9 @@ public class ArangoNetworkStyle {
 
     }
 
+    /**
+     * Creates the visual style for ArangoDB networks.
+     */
     public void createStyle() {
         Iterator<VisualStyle> it = visualMappingManager.getAllVisualStyles().iterator();
         while (it.hasNext()) {
@@ -114,7 +145,11 @@ public class ArangoNetworkStyle {
         visualMappingManager.addVisualStyle(arangoDBStyle);
 
     }
-
+    /**
+     * Applies the ArangoDB visual style to all network views.
+     *
+     * @param networkViewManager the network view manager
+     */
     public void applyStyles(CyNetworkViewManager networkViewManager) {
         Iterator<VisualStyle> it = visualMappingManager.getAllVisualStyles().iterator();
 
@@ -130,6 +165,12 @@ public class ArangoNetworkStyle {
 
     }
 
+    /**
+     * Computes the color index for a collection name.
+     *
+     * @param collectionName the name of the collection
+     * @return the color index
+     */
     public static int computeColorIndex(String collectionName) {
         return Math.abs(collectionName.hashCode() % COLOR_TABLE.length);
     }
