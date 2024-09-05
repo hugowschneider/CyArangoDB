@@ -1,0 +1,32 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "microsoft"
+          java-version: "21"
+          cache: maven   
+      - name: Compile
+        run: mvn --batch-mode compile
+      - name: Install
+        run: mvn --batch-mode install -DskipTests
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+        run: |
+          gh release create "$tag" ./target/CyArangoDB*.jar --title="${GITHUB_REPOSITORY#*/} ${tag#v}" --notes-from-tag
