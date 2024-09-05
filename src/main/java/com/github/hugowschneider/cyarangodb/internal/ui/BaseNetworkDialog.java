@@ -93,6 +93,7 @@ public abstract class BaseNetworkDialog extends JDialog {
         queryTextArea.setSyntaxEditingStyle("text/aql");
         queryTextArea.setCodeFoldingEnabled(false);
         queryTextArea.setAntiAliasingEnabled(true);
+        queryTextArea.setTabSize(2);
         queryTextArea.setEditable(true);
         queryTextArea.setEnabled(true);
 
@@ -232,7 +233,7 @@ public abstract class BaseNetworkDialog extends JDialog {
 
         Collections.sort(history, Comparator.comparing(ConnectionDetails.QueryHistory::getExecutedAt).reversed());
 
-        historyTableModel.setRowCount(history.size());
+        historyTableModel.setRowCount(0);
 
         for (ConnectionDetails.QueryHistory entry : history) {
             historyTableModel.addRow(new Object[] { entry.getExecutedAt(), entry.getQuery(), "Run", "Copy", "Delete" });
