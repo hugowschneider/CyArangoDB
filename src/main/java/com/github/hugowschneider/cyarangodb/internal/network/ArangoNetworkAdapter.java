@@ -21,6 +21,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.hugowschneider.cyarangodb.internal.Constants;
 
 public class ArangoNetworkAdapter {
     private CyNetworkFactory networkFactory;
@@ -55,11 +56,10 @@ public class ArangoNetworkAdapter {
 
     private String getName(BaseDocument doc) {
 
-        if (doc.getAttribute("Name") != null) {
-            return (String) doc.getAttribute("Name");
-        }
-        if (doc.getAttribute("name") != null) {
-            return (String) doc.getAttribute("name");
+        for (String key : doc.getProperties().keySet()) {
+            if (key.equalsIgnoreCase(Constants.NodeColumns.NAME)) {
+                return (String) doc.getAttribute(key);
+            }
         }
 
         return doc.getKey();
@@ -79,17 +79,17 @@ public class ArangoNetworkAdapter {
 
             CyTable table = network.getDefaultNodeTable();
             CyRow row = table.getRow(node.getSUID());
-            row.set("Id", doc.getId());
-            row.set("Collection", collection);
-            row.set("Key", doc.getKey());
-            row.set("Revision", doc.getRevision());
-            row.set("name", String.format("%1$s (%2$s)", getName(doc), collection));
-            row.set("Color", ArangoNetworkStyle.computeColorIndex(collection));
+            row.set(Constants.NodeColumns.ID, doc.getId());
+            row.set(Constants.NodeColumns.COLLECTION, collection);
+            row.set(Constants.NodeColumns.KEY, doc.getKey());
+            row.set(Constants.NodeColumns.REVISION, doc.getRevision());
+            row.set(Constants.NodeColumns.NAME, String.format("%1$s (%2$s)", getName(doc), collection));
+            row.set(Constants.NodeColumns.COLOR, ArangoNetworkStyle.computeColorIndex(collection));
             try {
-                row.set("Data",
+                row.set(Constants.NodeColumns.DATA,
                         mapper.writerWithDefaultPrettyPrinter().writeValueAsString(doc));
             } catch (JsonProcessingException e) {
-                row.set("Data",
+                row.set(Constants.NodeColumns.DATA,
                         String.format("Error reading node Data: %1$s", e.getMessage()));
             }
 
@@ -183,20 +183,21 @@ public class ArangoNetworkAdapter {
         CyTable cyNodeTable = network.getDefaultNodeTable();
         CyTable cyEdgeTable = network.getDefaultEdgeTable();
 
-        cyNodeTable.createColumn("Id", String.class, true);
-        cyNodeTable.createColumn("Collection", String.class, true);
-        cyNodeTable.createColumn("Key", String.class, true);
-        cyNodeTable.createColumn("Data", String.class, true);
-        cyNodeTable.createColumn("Revision", String.class, true);
-        cyNodeTable.createColumn("Color", Integer.class, true);
+        cyNodeTable.createColumn(Constants.NodeColumns.ID, String.class, true);
+        cyNodeTable.createColumn(Constants.NodeColumns.COLLECTION, String.class, true);
+        cyNodeTable.createColumn(Constants.NodeColumns.KEY, String.class, true);
+        cyNodeTable.createColumn(Constants.NodeColumns.DATA, String.class, true);
+        cyNodeTable.createColumn(Constants.NodeColumns.REVISION, String.class, true);
+        cyNodeTable.createColumn(Constants.NodeColumns.COLOR, Integer.class, true);
 
-        cyEdgeTable.createColumn("Id", String.class, true);
-        cyEdgeTable.createColumn("Collection", String.class, true);
-        cyEdgeTable.createColumn("To", String.class, true);
-        cyEdgeTable.createColumn("From", String.class, true);
-        cyEdgeTable.createColumn("Data", String.class, true);
-        cyEdgeTable.createColumn("Revision", String.class, true);
-        cyEdgeTable.createColumn("Color", Integer.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.ID, String.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.COLLECTION, String.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.TO, String.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.FROM, String.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.DATA, String.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.REVISION, String.class, true);
+        cyEdgeTable.createColumn(Constants.EdgeColumns.COLOR, Integer.class, true);
+        cyEdgeTable.createColumn(Constants.NodeColumns.KEY, String.class, true);
 
         this.loadedNodes.values().forEach((doc) -> {
             getOrCreateCyNode(doc.getId(), network);
@@ -219,22 +220,27 @@ public class ArangoNetworkAdapter {
             CyEdge cyEdge = network.addEdge(toNode, fromNode, true);
             String collection = edge.getId().split("/")[0];
             CyRow row = cyEdgeTable.getRow(cyEdge.getSUID());
-            row.set("name", String.format("%1$s (%2$s)", getName(edge), collection));
-            row.set("Id", edge.getId());
-            row.set("Collection", collection);
-            row.set("To", edge.getTo());
-            row.set("From", edge.getFrom());
-            try {
-                row.set("Data", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(edge));
-            } catch (JsonProcessingException e) {
-                row.set("Data", String.format("Error reading edge Data: %1$s", e.getMessage()));
-            }
-            row.set("Revision", edge.getRevision());
-            row.set("Color", ArangoNetworkStyle.computeColorIndex(collection));
+            addEdgeAttributes(edge, collection, row);
 
         });
 
         return network;
+    }
+
+    private void addEdgeAttributes(BaseEdgeDocument edge, String collection, CyRow row) {
+        row.set(Constants.EdgeColumns.ID, edge.getId());
+        row.set(Constants.EdgeColumns.COLLECTION, collection);
+        row.set(Constants.EdgeColumns.KEY, edge.getKey());
+        row.set(Constants.EdgeColumns.TO, edge.getTo());
+        row.set(Constants.EdgeColumns.FROM, edge.getFrom());
+        row.set(Constants.EdgeColumns.NAME, String.format("%1$s (%2$s)", getName(edge), collection));
+        try {
+            row.set(Constants.EdgeColumns.DATA, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(edge));
+        } catch (JsonProcessingException e) {
+            row.set(Constants.EdgeColumns.DATA, String.format("Error reading edge Data: %1$s", e.getMessage()));
+        }
+        row.set(Constants.EdgeColumns.REVISION, edge.getRevision());
+        row.set(Constants.EdgeColumns.COLOR, ArangoNetworkStyle.computeColorIndex(collection));
     }
 
     public List<CyNode> expandWithPath(List<RawJson> docs, String nodeId) {
@@ -285,18 +291,7 @@ public class ArangoNetworkAdapter {
             CyEdge cyEdge = network.addEdge(toNode, fromNode, true);
             String collection = edge.getId().split("/")[0];
             CyRow row = cyEdgeTable.getRow(cyEdge.getSUID());
-            row.set("name", String.format("%1$s (%2$s)", getName(edge), collection));
-            row.set("Id", edge.getId());
-            row.set("Collection", collection);
-            row.set("To", edge.getTo());
-            row.set("From", edge.getFrom());
-            try {
-                row.set("Data", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(edge));
-            } catch (JsonProcessingException e) {
-                row.set("Data", String.format("Error reading edge Data: %1$s", e.getMessage()));
-            }
-            row.set("Revision", edge.getRevision());
-            row.set("Color", ArangoNetworkStyle.computeColorIndex(collection));
+            addEdgeAttributes(edge, collection, row);
 
         });
 

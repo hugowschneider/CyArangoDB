@@ -1,4 +1,4 @@
-package com.github.hugowschneider.cyarangodb.internal.ui.aql;
+package com.github.hugowschneider.cyarangodb.internal.aql;
 
 import java.awt.Point;
 import java.util.ArrayList;

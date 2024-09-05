@@ -40,8 +40,7 @@ public class ArangoNetworkStyle {
     };
 
     private VisualMappingManager visualMappingManager;
-    private VisualStyleFactory visualStyleFactory;    
-    private VisualMappingFunctionFactory mappingFunctionFactoryContinues;
+    private VisualStyleFactory visualStyleFactory;
     private VisualMappingFunctionFactory mappingFunctionFactoryDiscrete;
     private VisualMappingFunctionFactory mappingFunctionPassthorugh;
 
@@ -49,10 +48,8 @@ public class ArangoNetworkStyle {
 
     public ArangoNetworkStyle(VisualMappingManager visualMappingManager,
             VisualStyleFactory visualStyleFactory,
-            VisualMappingFunctionFactory mappingFunctionFactoryContinues,
             VisualMappingFunctionFactory mappingFunctionFactoryDiscrete,
             VisualMappingFunctionFactory mappingFunctionPassthorugh) {
-        this.mappingFunctionFactoryContinues = mappingFunctionFactoryContinues;
         this.mappingFunctionFactoryDiscrete = mappingFunctionFactoryDiscrete;
         this.mappingFunctionPassthorugh = mappingFunctionPassthorugh;
         this.visualMappingManager = visualMappingManager;

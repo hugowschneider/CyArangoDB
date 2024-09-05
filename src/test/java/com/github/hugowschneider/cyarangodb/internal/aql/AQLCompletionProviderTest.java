@@ -1,5 +1,5 @@
 
-package com.github.hugowschneider.cyarangodb.internal.ui.aql;
+package com.github.hugowschneider.cyarangodb.internal.aql;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
