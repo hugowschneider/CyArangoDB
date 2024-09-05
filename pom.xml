@@ -25,7 +25,7 @@
 
     <groupId>com.github.hugowschneider</groupId>
     <artifactId>CyArangoDB</artifactId>
-    <version>0.0.1-SNAPSHOT-1</version>
+    <version>0.0.1</version>
 
     <packaging>bundle</packaging>
     <dependencyManagement>
