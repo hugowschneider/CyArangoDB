@@ -41,7 +41,7 @@ import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetail
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
 import com.github.hugowschneider.cyarangodb.internal.flex.AqlTokenMaker;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
-import com.github.hugowschneider.cyarangodb.internal.ui.aql.AQLCompletionProvider;
+import com.github.hugowschneider.cyarangodb.internal.aql.AQLCompletionProvider;
 
 public abstract class BaseNetworkDialog extends JDialog {
     protected final ConnectionManager connectionManager;

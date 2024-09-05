@@ -34,7 +34,7 @@ public class NetworkManager {
     private CyNetworkViewManager networkViewManager;
     private CyApplicationManager applicationManager;
     private CyLayoutAlgorithmManager layoutAlgorithmManager;
-    private Map<String, NetworkContext> networks;
+    private Map<String, ArangoNetworkAdapter> networks;
     private TaskManager<?, ?> taskManager;
     private ArangoNetworkStyle arangoNetworkStyle;
 
@@ -78,7 +78,7 @@ public class NetworkManager {
     private void addNetwork(CyNetwork network, ArangoNetworkAdapter adapter) {
         String uuid = UUID.randomUUID().toString();
         network.getDefaultNetworkTable().getRow(network.getSUID()).set("uuid", uuid);
-        networks.put(uuid, new NetworkContext(network, adapter));
+        networks.put(uuid, adapter);
     }
 
     public NetworkImportResult importNetwork(List<RawJson> docs, ArangoDatabase database, String networkName,
@@ -125,14 +125,14 @@ public class NetworkManager {
                     "The result does not contain an edge to the selected node '%1$s'.", nodeId));
         }
         CyNetwork network = networkView.getModel();
-        NetworkContext networkContext = this.networks
+        ArangoNetworkAdapter adapter = this.networks
                 .get(network.getDefaultNetworkTable().getRow(network.getSUID()).get("uuid",
                         String.class));
         List<CyNode> newNodes;
         if (validator.isPathList()) {
-            newNodes = networkContext.getAdapter().expandWithPath(docs, nodeId);
+            newNodes = adapter.expandWithPath(docs, nodeId);
         } else {
-            newNodes = networkContext.getAdapter().expandWithEdges(docs, nodeId);
+            newNodes = adapter.expandWithEdges(docs, nodeId);
         }
         networkView.updateView();
         handleNetworkView(network, networkView);
@@ -148,24 +148,5 @@ public class NetworkManager {
                 nodes,
                 null);
         taskManager.execute(taskIterator);
-    }
-
-    private class NetworkContext {
-        CyNetwork network;
-        ArangoNetworkAdapter adapter;
-
-        public NetworkContext(CyNetwork network, ArangoNetworkAdapter adapter) {
-            this.network = network;
-            this.adapter = adapter;
-        }
-        
-        public CyNetwork getNetwork() {
-            return network;
-        }
-
-        public ArangoNetworkAdapter getAdapter() {
-            return adapter;
-        }
-
     }
 }
