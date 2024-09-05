@@ -1,0 +1,3 @@
+ignore:
+  - "com/github/hugowschneider/cyarangodb/internal/ui/**/*"
+  - "com/github/hugowschneider/cyarangodb/internal/flex/**/*"
