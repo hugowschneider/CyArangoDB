@@ -231,7 +231,8 @@ public abstract class BaseNetworkDialog extends JDialog {
         List<ConnectionDetails.QueryHistory> history = connectionManager.getQueryHistory(connectionName);
 
         Collections.sort(history, Comparator.comparing(ConnectionDetails.QueryHistory::getExecutedAt).reversed());
-        historyTableModel.setRowCount(0);
+
+        historyTableModel.setRowCount(history.size());
 
         for (ConnectionDetails.QueryHistory entry : history) {
             historyTableModel.addRow(new Object[] { entry.getExecutedAt(), entry.getQuery(), "Run", "Copy", "Delete" });

@@ -108,7 +108,14 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>                
+                <version>0.8.12</version>
+                <configuration>
+                    <excludes>
+                        <exclude>com/github/hugowschneider/cyarangodb/internal/ui/**/*.class</exclude>
+                        <exclude>com/github/hugowschneider/cyarangodb/internal/flex/**/*.class</exclude>
+                        <exclude>com/github/hugowschneider/cyarangodb/internal/CyActivator.class</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>

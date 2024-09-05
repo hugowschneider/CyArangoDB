@@ -27,40 +27,20 @@ public class ConnectionDetails {
         return host;
     }
 
-    public void setHost(String host) {
-        this.host = host;
-    }
-
     public int getPort() {
         return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
     }
 
     public String getUser() {
         return user;
     }
 
-    public void setUser(String user) {
-        this.user = user;
-    }
-
     public String getPassword() {
         return password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
     public String getDatabase() {
         return database;
-    }
-
-    public void setDatabase(String database) {
-        this.database = database;
     }
 
     public List<QueryHistory> getHistory() {
@@ -77,6 +57,19 @@ public class ConnectionDetails {
         history.add(new QueryHistory(query, LocalDateTime.now()));
     }
 
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (!(obj instanceof ConnectionDetails)) {
+            return false;
+        }
+        ConnectionDetails other = (ConnectionDetails) obj;
+        return this.host.equals(other.host) && this.port == other.port && this.user.equals(other.user)
+                && this.password.equals(other.password) && this.database.equals(other.database)
+                && this.history.equals(other.history);
+    }
+
     public static class QueryHistory {
         private String query;
         private LocalDateTime executedAt;
@@ -90,16 +83,19 @@ public class ConnectionDetails {
             return query;
         }
 
-        public void setQuery(String query) {
-            this.query = query;
-        }
-
         public LocalDateTime getExecutedAt() {
             return executedAt;
         }
 
-        public void setExecutedAt(LocalDateTime executedAt) {
-            this.executedAt = executedAt;
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (!(obj instanceof QueryHistory)) {
+                return false;
+            }
+            QueryHistory other = (QueryHistory) obj;
+            return this.query.equals(other.query) && this.executedAt.equals(other.executedAt);
         }
 
     }
