@@ -50,14 +50,38 @@ public class QueryResultValidatorTest {
     }
 
     @Test
-    @DisplayName("Test isEdgeList()")
+    @DisplayName("QueryResultValidator::isEdgeList shpuld reutrn true")
     public void testIsEdgeList() throws ImportNetworkException {
 
         List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
-                "FOR e IN imdb_edges\nRETURN e");
+                "FOR e IN imdb_edges\nLIMIT 10\nRETURN e");
         QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
         assertTrue(queryResultValidator.isEdgeList());
         assertFalse(queryResultValidator.isPathList());
+    }
+
+    @Test
+    @DisplayName("QueryResultValidator::isNodeEdgePresent shpuld reutrn true in a path list")
+    public void testIsNodePresentInPathList() throws ImportNetworkException {
+
+        List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
+                "FOR v, e, p IN 1..1 ANY 'imdb_vertices/1000' GRAPH imdb\nRETURN p");
+        QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
+        assertTrue(queryResultValidator.isPathList());
+        assertTrue(queryResultValidator.isNodeEdgePresent("imdb_vertices/1000"));
+        assertFalse(queryResultValidator.isNodeEdgePresent("imdb_vertices/x1000"));
+    }
+
+    @Test
+    @DisplayName("QueryResultValidator::isEdgeList shpuld reutrn true")
+    public void testIsNodePresentInEdgeList() throws ImportNetworkException {
+
+            List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
+                "FOR e IN imdb_edges\nFILTER e._from == 'imdb_vertices/1000'\nLIMIT 10\nRETURN e");
+        QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
+        assertTrue(queryResultValidator.isEdgeList());
+        assertTrue(queryResultValidator.isNodeEdgePresent("imdb_vertices/1000"));
+        assertFalse(queryResultValidator.isNodeEdgePresent("imdb_vertices/x1000"));
     }
 
 }

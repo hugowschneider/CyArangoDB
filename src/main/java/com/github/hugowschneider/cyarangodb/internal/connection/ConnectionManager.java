@@ -1,15 +1,24 @@
 package com.github.hugowschneider.cyarangodb.internal.connection;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
 
 import com.arangodb.ArangoDB;
 import com.arangodb.ArangoDatabase;
 import com.arangodb.Protocol;
 import com.arangodb.util.RawJson;
-
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -33,6 +42,7 @@ public class ConnectionManager {
         }
     }
 
+    private static final Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ConnectionManager.class);
     private static final String ARANGODB_CONNECTION_JSON = "arangodb-connection.json";
 
     private Map<String, ConnectionDetails> connections;
@@ -98,7 +108,13 @@ public class ConnectionManager {
 
     // Method to get query history for a connection
     public List<ConnectionDetails.QueryHistory> getQueryHistory(String connectionName) {
-        return this.getConnection(connectionName).getHistory();
+        ConnectionDetails connection = this.getConnection(connectionName);
+        if (connection == null) {
+            return Collections.emptyList();
+        } else {
+            return this.getConnection(connectionName).getHistory();
+        }
+
     }
 
     public boolean validate(String name) {
@@ -132,6 +148,7 @@ public class ConnectionManager {
         if (index >= 0 && index < history.size()) {
             history.remove(index);
         }
+        saveConnections();
     }
 
     public List<RawJson> execute(String connectionName, String query) throws ImportNetworkException {
@@ -161,7 +178,7 @@ public class ConnectionManager {
         try (Writer writer = new FileWriter(filePath)) {
             gson.toJson(connections, writer);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error(e.getMessage(), e);
         }
     }
 
@@ -179,11 +196,8 @@ public class ConnectionManager {
     }
 
     private boolean validate(ArangoDatabase db) {
-
         db.getVersion();
-
         return true;
-
     }
 
 }
