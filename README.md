@@ -10,13 +10,13 @@ Key features include:
 
 - Direct connectivity to ArangoDB for data retrieval.
 - Query capabilities with syntax highlighting and autocompletion.
-  <img src="https://raw.githubusercontent.com/username/repository/master/docs/images/import.png" alt="Query capabilities" width="300">
+  <img src="https://raw.githubusercontent.com/hugowschneider/CyArangoDB/main/docs/images/import.png" alt="Query capabilities" heigth="300">
 - Support for importing and extending graphs as networks.
-  <img src="https://raw.githubusercontent.com/username/repository/master/docs/images/expand.png" alt="Graph import and extension" width="300">
+  <img src="https://raw.githubusercontent.com/hugowschneider/CyArangoDB/main/docs/images/expand.png" alt="Graph import and extension" heigth="300">
 - Uses CytoScape 3 interface to visualize imported data.
 - Node and edge data retrieval directly from ArangoDB.
-  <img src="https://raw.githubusercontent.com/username/repository/master/docs/images/details.png" alt="Node and edge data retrieval" width="300">
-  
+  <img src="https://raw.githubusercontent.com/hugowschneider/CyArangoDB/main/docs/images/details.png" alt="Node and edge data retrieval" heigth="300">
+
 Whether working with biological data or other large-scale network data, this tool enables users to leverage ArangoDB’s capabilities directly within CytoScape’s robust ecosystem for analysis and visualization.
 
 
