@@ -15,6 +15,7 @@ import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.service.util.AbstractCyActivator;
 import org.cytoscape.task.EdgeViewTaskFactory;
+import org.cytoscape.task.NetworkViewTaskFactory;
 import org.cytoscape.task.NodeViewTaskFactory;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
 import org.cytoscape.view.model.CyNetworkViewFactory;
@@ -33,6 +34,7 @@ import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
 import com.github.hugowschneider.cyarangodb.internal.ui.ImportNetworkAction;
 import com.github.hugowschneider.cyarangodb.internal.ui.ManageConnectionsAction;
 import com.github.hugowschneider.cyarangodb.internal.ui.task.EdgeDetailContextMenuFactory;
+import com.github.hugowschneider.cyarangodb.internal.ui.task.ExpandNetworkContextMenuFactory;
 import com.github.hugowschneider.cyarangodb.internal.ui.task.ExpandNodeContextMenuFactory;
 import com.github.hugowschneider.cyarangodb.internal.ui.task.NodeDetailContextMenuFactory;
 
@@ -52,6 +54,7 @@ public class CyActivator extends AbstractCyActivator {
 	public CyActivator() {
 		super();
 	}
+
 	/**
 	 * Starts the CyArangoDB application.
 	 *
@@ -102,7 +105,7 @@ public class CyActivator extends AbstractCyActivator {
 		registerAllServices(context, manageConnectionsAction, new Properties());
 		registerAllServices(context, importNetworkAction, new Properties());
 
-		// Node Context Manu actions
+		// Context Manu actions
 		{
 			ExpandNodeContextMenuFactory factory = new ExpandNodeContextMenuFactory(networkManager,
 					connectionManager,
@@ -114,6 +117,19 @@ public class CyActivator extends AbstractCyActivator {
 			props.setProperty(MENU_GRAVITY, "1.0");
 			props.setProperty(TITLE, "Extend Network using ArangoDB Query");
 			registerService(context, factory, NodeViewTaskFactory.class, props);
+		}
+
+		{
+			ExpandNetworkContextMenuFactory factory = new ExpandNetworkContextMenuFactory(networkManager,
+					connectionManager,
+					cytoscapeMain);
+
+			Properties props = new Properties();
+			props.setProperty("preferredTaskManager", "menu");
+			props.setProperty(PREFERRED_MENU, NODE_APPS_MENU);
+			props.setProperty(MENU_GRAVITY, "1.0");
+			props.setProperty(TITLE, "Extend Network using ArangoDB Query");
+			registerService(context, factory, NetworkViewTaskFactory.class, props);
 		}
 
 		{

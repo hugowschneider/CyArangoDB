@@ -1,14 +1,15 @@
 name: Build
 
-on:
+on: 
   push:
     branches:
-      - "*"
+      - "**"
   pull_request:
     branches:
-      - "*"  
+      - "**"  
 jobs:
   build:
+    name: Build and Test
     env:
       ARANGODB_HOST: localhost
       ARANGODB_PORT: 8529
@@ -48,14 +49,16 @@ jobs:
           distribution: "microsoft"
           java-version: "21"
           cache: maven
+      - name: Maven Version Check
+        run: mvn --version
       - name: Compile
-        run: mvn --batch-mode compile
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml compile
       - name: Run tests
-        run: mvn -B test
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml test
       - name: Install
-        run: mvn --batch-mode install -DskipTests
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml install -DskipTests
       - name: Javadoc Jar
-        run: mvn --batch-mode javadoc:jar
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml javadoc:jar
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         env:

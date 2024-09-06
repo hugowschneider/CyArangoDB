@@ -22,13 +22,13 @@ import com.github.hugowschneider.cyarangodb.internal.test.Helper;
 public class QueryResultValidatorTest {
 
     private ConnectionManager connectionManager;
-    private static final String CONNECTION_NAME = "test-connection";
+    private String connectionId;
 
     @BeforeAll
     public void setUpAll() {
         ConnectionDetails connectionDetails = Helper.createConnectionDetails();
         connectionManager = new ConnectionManager("./target/test-resources");
-        connectionManager.addConnection(CONNECTION_NAME, connectionDetails);
+        connectionId = connectionManager.addConnection(connectionDetails);
 
     }
 
@@ -42,7 +42,7 @@ public class QueryResultValidatorTest {
     @DisplayName("QueryResultValidator::isPathList should return true")
     public void testIsPathList() throws ImportNetworkException {
 
-        List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
+        List<RawJson> docs = connectionManager.execute(connectionId,
                 "FOR v, e, p IN 1..1 ANY 'imdb_vertices/1000' GRAPH imdb\nRETURN p");
         QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
         assertTrue(queryResultValidator.isPathList());
@@ -53,7 +53,7 @@ public class QueryResultValidatorTest {
     @DisplayName("QueryResultValidator::isEdgeList shpuld reutrn true")
     public void testIsEdgeList() throws ImportNetworkException {
 
-        List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
+        List<RawJson> docs = connectionManager.execute(connectionId,
                 "FOR e IN imdb_edges\nLIMIT 10\nRETURN e");
         QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
         assertTrue(queryResultValidator.isEdgeList());
@@ -64,7 +64,7 @@ public class QueryResultValidatorTest {
     @DisplayName("QueryResultValidator::isNodeEdgePresent shpuld reutrn true in a path list")
     public void testIsNodePresentInPathList() throws ImportNetworkException {
 
-        List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
+        List<RawJson> docs = connectionManager.execute(connectionId,
                 "FOR v, e, p IN 1..1 ANY 'imdb_vertices/1000' GRAPH imdb\nRETURN p");
         QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
         assertTrue(queryResultValidator.isPathList());
@@ -76,7 +76,7 @@ public class QueryResultValidatorTest {
     @DisplayName("QueryResultValidator::isEdgeList shpuld reutrn true")
     public void testIsNodePresentInEdgeList() throws ImportNetworkException {
 
-            List<RawJson> docs = connectionManager.execute(CONNECTION_NAME,
+        List<RawJson> docs = connectionManager.execute(connectionId,
                 "FOR e IN imdb_edges\nFILTER e._from == 'imdb_vertices/1000'\nLIMIT 10\nRETURN e");
         QueryResultValidator queryResultValidator = new QueryResultValidator(docs);
         assertTrue(queryResultValidator.isEdgeList());

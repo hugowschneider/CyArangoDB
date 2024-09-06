@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   release:
+    name: Create release
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -19,13 +20,15 @@ jobs:
         with:
           distribution: "microsoft"
           java-version: "21"
-          cache: maven   
+          cache: maven
+      - name: Maven Version Check
+        run: mvn --version
       - name: Compile
-        run: mvn --batch-mode compile
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml compile
       - name: Install
-        run: mvn --batch-mode install -DskipTests
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml install -DskipTests
       - name: Javadoc Jar
-        run: mvn --batch-mode javadoc:jar
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml javadoc:jar
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

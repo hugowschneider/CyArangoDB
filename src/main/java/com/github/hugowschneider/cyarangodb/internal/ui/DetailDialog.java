@@ -21,8 +21,8 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea;
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants;
 import org.fife.ui.rtextarea.RTextScrollPane;
 
-import com.github.hugowschneider.cyarangodb.internal.Constants;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
+import com.github.hugowschneider.cyarangodb.internal.network.Constants;
 
 /**
  * A dialog that displays detailed information about a node or edge in a network.

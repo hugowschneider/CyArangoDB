@@ -10,6 +10,7 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -23,6 +24,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 
@@ -37,17 +39,64 @@ import org.slf4j.LoggerFactory;
 
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
+import com.github.hugowschneider.cyarangodb.internal.aql.AQLCompletionProvider;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
 import com.github.hugowschneider.cyarangodb.internal.flex.AqlTokenMaker;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
-import com.github.hugowschneider.cyarangodb.internal.aql.AQLCompletionProvider;
 
 /**
  * An abstract base class for dialogs that interact with ArangoDB networks.
- * Provides common functionality for executing queries and managing query history.
+ * Provides common functionality for executing queries and managing query
+ * history.
  */
 public abstract class BaseNetworkDialog extends JDialog {
+    /**
+     * A class representing an item in a combo box.
+     */
+    private class ComboBoxItem {
+        private String value;
+        private String label;
+
+        /**
+         * Constructs a new ComboBoxItem.
+         *
+         * @param value the value of the item
+         * @param label the label of the item
+         */
+        public ComboBoxItem(String value, String label) {
+            this.value = value;
+            this.label = label;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (!(obj instanceof ComboBoxItem)) {
+                return false;
+            }
+            ComboBoxItem other = (ComboBoxItem) obj;
+            return this.value.equals(other.value);
+        }
+    }
+
+    /**
+     * The logger for logging messages.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(BaseNetworkDialog.class);
+
     /**
      * The connection manager responsible for managing database connections.
      */
@@ -56,7 +105,7 @@ public abstract class BaseNetworkDialog extends JDialog {
     /**
      * The dropdown for selecting a connection.
      */
-    protected final JComboBox<String> connectionDropdown;
+    protected final JComboBox<ComboBoxItem> connectionDropdown;
 
     /**
      * The text area for entering AQL queries.
@@ -79,9 +128,9 @@ public abstract class BaseNetworkDialog extends JDialog {
     private AQLCompletionProvider completionProvider;
 
     /**
-     * The logger for logging messages.
+     * The tabbed pane for switching between query and history views.
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseNetworkDialog.class);
+    private JTabbedPane tabbedPane;
 
     /**
      * Constructs a new BaseNetworkDialog.
@@ -111,13 +160,12 @@ public abstract class BaseNetworkDialog extends JDialog {
                     "No Connections", JOptionPane.WARNING_MESSAGE);
             this.dispose();
         } else {
-            for (String connectionName : connectionManager.getAllConnections().keySet()) {
-                connectionDropdown.addItem(connectionName);
+            for (Map.Entry<String, ConnectionDetails> entry : connectionManager.getAllConnections().entrySet()) {
+                connectionDropdown.addItem(new ComboBoxItem(entry.getKey(), entry.getValue().getName()));
             }
             connectionDropdown.addActionListener(e -> {
-                String connectionName = (String) connectionDropdown.getSelectedItem();
                 updateHistoryList();
-                this.completionProvider.setDatabase(connectionManager.getArangoDatabase(connectionName));
+                updateCompletionProvider();
             });
         }
 
@@ -161,7 +209,7 @@ public abstract class BaseNetworkDialog extends JDialog {
 
         add(topPanel, BorderLayout.NORTH);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane = new JTabbedPane();
 
         JPanel queryPanel = new JPanel(new BorderLayout());
         Component centerComponent = renderCenterComponent();
@@ -189,26 +237,7 @@ public abstract class BaseNetworkDialog extends JDialog {
         // Initialize the history list with existing history
         updateHistoryList();
         // Initialize the completion provider with the first connection
-        this.completionProvider
-                .setDatabase(connectionManager.getArangoDatabase((String) connectionDropdown.getSelectedItem()));
-    }
-
-    /**
-     * Sets up the code styles for the query text area.
-     *
-     * @param queryTextArea the query text area
-     */
-    private void setupCodeStyles(RSyntaxTextArea queryTextArea) {
-        Theme theme;
-        try {
-            URL themeURL = getClass().getClassLoader().getResource("theme.xml");
-            InputStream in = themeURL.openStream();
-            theme = Theme.load(in);
-            in.close();
-            theme.apply(queryTextArea);
-        } catch (IOException e) {
-            LOGGER.error(e.getMessage(), e);
-        }
+        updateCompletionProvider();
     }
 
     /**
@@ -252,10 +281,11 @@ public abstract class BaseNetworkDialog extends JDialog {
      *
      * @param docs     the list of RawJson documents
      * @param database the ArangoDatabase instance
-     * @param query    the query string
+     * @param metadata the metadata of the network
      * @throws ImportNetworkException if an error occurs during network import
      */
-    protected abstract void processQueryResult(List<RawJson> docs, ArangoDatabase database, String query)
+    protected abstract void processQueryResult(List<RawJson> docs, ArangoDatabase database,
+            ArangoNetworkMetadata metadata)
             throws ImportNetworkException;
 
     /**
@@ -263,18 +293,19 @@ public abstract class BaseNetworkDialog extends JDialog {
      */
     protected void executeQuery() {
         String query = queryTextArea.getText();
-        String connectionName = (String) connectionDropdown.getSelectedItem();
+        ComboBoxItem item = (ComboBoxItem) connectionDropdown.getSelectedItem();
         JDialog waitDialog = createWaitDialog();
 
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
                 try {
-                    List<RawJson> docs = connectionManager.execute(connectionName, query);
+                    List<RawJson> docs = connectionManager.execute(item.getValue(), query);
                     if (docs.isEmpty()) {
                         throw new ImportNetworkException("No results found for query");
                     }
-                    processQueryResult(docs, connectionManager.getArangoDatabase(connectionName), query);
+                    processQueryResult(docs, connectionManager.getArangoDatabase(item.getValue()),
+                            new ArangoNetworkMetadata(query, item.getValue()));
                     updateHistoryList();
                     BaseNetworkDialog.this.dispose();
                 } catch (ImportNetworkException e) {
@@ -302,8 +333,8 @@ public abstract class BaseNetworkDialog extends JDialog {
      * Updates the history list with the latest query history.
      */
     protected void updateHistoryList() {
-        String connectionName = (String) connectionDropdown.getSelectedItem();
-        List<ConnectionDetails.QueryHistory> history = connectionManager.getQueryHistory(connectionName);
+        ComboBoxItem item = (ComboBoxItem) connectionDropdown.getSelectedItem();
+        List<ConnectionDetails.QueryHistory> history = connectionManager.getQueryHistory(item.getValue());
 
         Collections.sort(history, Comparator.comparing(ConnectionDetails.QueryHistory::getExecutedAt).reversed());
 
@@ -315,25 +346,9 @@ public abstract class BaseNetworkDialog extends JDialog {
     }
 
     /**
-     * Creates a wait dialog to display while the query is being processed.
-     *
-     * @return the wait dialog
-     */
-    private JDialog createWaitDialog() {
-        JDialog waitDialog = new JDialog(this, "Please Wait", true);
-        waitDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        waitDialog.setSize(300, 100);
-        waitDialog.setLocationRelativeTo(this);
-        waitDialog.add(new JLabel("Processing query, please wait...", JLabel.CENTER));
-        return waitDialog;
-    }
-
-    /**
      * Runs the selected query from the history list.
      */
     protected void runHistory() {
-        int row = historyTable.getSelectedRow();
-        String connectionName = (String) connectionDropdown.getSelectedItem();
 
         // Create and display the wait dialog
         JDialog waitDialog = createWaitDialog();
@@ -341,10 +356,17 @@ public abstract class BaseNetworkDialog extends JDialog {
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
+                int row = historyTable.getSelectedRow();
+                ComboBoxItem item = (ComboBoxItem) connectionDropdown.getSelectedItem();
+
                 try {
-                    List<RawJson> docs = connectionManager.runHistory(connectionName, row);
-                    processQueryResult(docs, connectionManager.getArangoDatabase(connectionName),
-                            connectionManager.getQueryHistory(connectionName).get(row).getQuery());
+                    List<RawJson> docs = connectionManager.runHistory(item.getValue(), row);
+
+                    ArangoDatabase database = connectionManager.getArangoDatabase(item.getValue());
+                    processQueryResult(docs, database,
+                            new ArangoNetworkMetadata(
+                                    connectionManager.getQueryHistory(item.getValue()).get(row).getQuery(),
+                                    item.getValue()));
                 } catch (Exception ex) {
                     LOGGER.error(ex.getMessage(), ex);
                     JOptionPane.showMessageDialog(BaseNetworkDialog.this, ex.getMessage());
@@ -370,6 +392,8 @@ public abstract class BaseNetworkDialog extends JDialog {
         int row = historyTable.getSelectedRow();
         String query = (String) historyTableModel.getValueAt(row, 1);
         queryTextArea.setText(query);
+        tabbedPane.setSelectedIndex(0);
+
     }
 
     /**
@@ -377,8 +401,57 @@ public abstract class BaseNetworkDialog extends JDialog {
      */
     protected void deleteHistory() {
         int row = historyTable.getSelectedRow();
-        String connectionName = (String) connectionDropdown.getSelectedItem();
-        connectionManager.deleteQueryHistory(connectionName, row);
+        ComboBoxItem item = (ComboBoxItem) connectionDropdown.getSelectedItem();
+        connectionManager.deleteQueryHistory(item.getValue(), row);
         updateHistoryList();
+    }
+
+    private void updateCompletionProvider() {
+        ArangoDatabase database = connectionManager
+                .getArangoDatabase(((ComboBoxItem) connectionDropdown.getSelectedItem()).getValue());
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                database.getVersion();
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error connecting to database",
+                        "Error connecting to database. Some auto-completion features may not work.",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            this.completionProvider.setDatabase(database);
+        });
+    }
+
+    /**
+     * Sets up the code styles for the query text area.
+     *
+     * @param queryTextArea the query text area
+     */
+    private void setupCodeStyles(RSyntaxTextArea queryTextArea) {
+        Theme theme;
+        try {
+            URL themeURL = getClass().getClassLoader().getResource("theme.xml");
+            InputStream in = themeURL.openStream();
+            theme = Theme.load(in);
+            in.close();
+            theme.apply(queryTextArea);
+        } catch (IOException e) {
+            LOGGER.error(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Creates a wait dialog to display while the query is being processed.
+     *
+     * @return the wait dialog
+     */
+    private JDialog createWaitDialog() {
+        JDialog waitDialog = new JDialog(this, "Please Wait", true);
+        waitDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        waitDialog.setSize(300, 100);
+        waitDialog.setLocationRelativeTo(this);
+        waitDialog.add(new JLabel("Processing query, please wait...", JLabel.CENTER));
+        return waitDialog;
     }
 }

@@ -1,17 +1,19 @@
 package com.github.hugowschneider.cyarangodb.internal.network;
 
-import com.arangodb.ArangoDatabase;
-import com.arangodb.util.RawJson;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.cytoscape.application.CyApplicationManager;
 import org.cytoscape.model.CyNetwork;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
 import org.cytoscape.model.CyNode;
-import org.cytoscape.model.CyTable;
 import org.cytoscape.view.layout.CyLayoutAlgorithm;
 import org.cytoscape.view.layout.CyLayoutAlgorithmManager;
-
 import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.view.model.CyNetworkViewFactory;
 import org.cytoscape.view.model.CyNetworkViewManager;
@@ -19,16 +21,13 @@ import org.cytoscape.view.model.View;
 import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskManager;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashMap;
-
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.arangodb.ArangoDatabase;
+import com.arangodb.util.RawJson;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata.NodeExpansionMetadata;
 
 /**
- * Manages the creation, import, and expansion of networks in Cytoscape using data from ArangoDB.
+ * Manages the creation, import, and expansion of networks in Cytoscape using
+ * data from ArangoDB.
  */
 public class NetworkManager {
     /**
@@ -79,19 +78,24 @@ public class NetworkManager {
     /**
      * Constructs a new NetworkManager.
      *
-     * @param networkFactory          the factory for creating Cytoscape networks
-     * @param networkManager          the manager for handling Cytoscape networks
-     * @param networkViewFactory      the factory for creating Cytoscape network views
-     * @param networkViewManager      the manager for handling Cytoscape network views
-     * @param applicationManager      the application manager for Cytoscape
-     * @param layoutAlgorithmManager  the manager for handling Cytoscape layout algorithms
-     * @param taskManager             the task manager for executing tasks in Cytoscape
-     * @param arangoNetworkStyle      the style manager for applying styles to networks
+     * @param networkFactory         the factory for creating Cytoscape networks
+     * @param networkManager         the manager for handling Cytoscape networks
+     * @param networkViewFactory     the factory for creating Cytoscape network
+     *                               views
+     * @param networkViewManager     the manager for handling Cytoscape network
+     *                               views
+     * @param applicationManager     the application manager for Cytoscape
+     * @param layoutAlgorithmManager the manager for handling Cytoscape layout
+     *                               algorithms
+     * @param taskManager            the task manager for executing tasks in
+     *                               Cytoscape
+     * @param arangoNetworkStyle     the style manager for applying styles to
+     *                               networks
      */
     public NetworkManager(CyNetworkFactory networkFactory, CyNetworkManager networkManager,
-                          CyNetworkViewFactory networkViewFactory, CyNetworkViewManager networkViewManager,
-                          CyApplicationManager applicationManager, CyLayoutAlgorithmManager layoutAlgorithmManager,
-                          TaskManager<?, ?> taskManager, ArangoNetworkStyle arangoNetworkStyle) {
+            CyNetworkViewFactory networkViewFactory, CyNetworkViewManager networkViewManager,
+            CyApplicationManager applicationManager, CyLayoutAlgorithmManager layoutAlgorithmManager,
+            TaskManager<?, ?> taskManager, ArangoNetworkStyle arangoNetworkStyle) {
         this.networkFactory = networkFactory;
         this.networkManager = networkManager;
         this.networkViewFactory = networkViewFactory;
@@ -142,7 +146,7 @@ public class NetworkManager {
      */
     private void addNetwork(CyNetwork network, ArangoNetworkAdapter adapter) {
         String uuid = UUID.randomUUID().toString();
-        network.getDefaultNetworkTable().getRow(network.getSUID()).set("uuid", uuid);
+        network.getDefaultNetworkTable().getRow(network.getSUID()).set(Constants.NetworkColumns.ID, uuid);
         networks.put(uuid, adapter);
     }
 
@@ -152,12 +156,12 @@ public class NetworkManager {
      * @param docs        the list of RawJson documents
      * @param database    the ArangoDatabase instance
      * @param networkName the name of the network
-     * @param query       the query string
+     * @param metadata    the metadata of the network
      * @return the result of the network import
      * @throws ImportNetworkException if the import fails
      */
     public NetworkImportResult importNetwork(List<RawJson> docs, ArangoDatabase database, String networkName,
-                                             String query) throws ImportNetworkException {
+            ArangoNetworkMetadata metadata) throws ImportNetworkException {
         QueryResultValidator validator = new QueryResultValidator(docs);
         if (!validator.isEdgeList() && !validator.isPathList()) {
             throw new ImportNetworkException(
@@ -167,16 +171,12 @@ public class NetworkManager {
         ArangoNetworkAdapter adapter = new ArangoNetworkAdapter(database, networkFactory);
         CyNetwork network;
         if (validator.isEdgeList()) {
-            network = adapter.adaptEdges(docs);
+            network = adapter.importEdges(docs, metadata);
         } else {
-            network = adapter.adaptPaths(docs);
+            network = adapter.importPaths(docs, metadata);
         }
-        CyTable networkTable = network.getDefaultNetworkTable();
-        networkTable.createColumn("query", String.class, false);
-        networkTable.createColumn("uuid", String.class, false);
 
-        network.getDefaultNetworkTable().getRow(network.getSUID()).set("query", query);
-        network.getDefaultNetworkTable().getRow(network.getSUID()).set("name", networkName);
+        network.getDefaultNetworkTable().getRow(network.getSUID()).set(Constants.NetworkColumns.NAME, networkName);
         networkManager.addNetwork(network);
         addNetwork(network, adapter);
         handleNetworkView(network, null);
@@ -187,35 +187,36 @@ public class NetworkManager {
     /**
      * Expands a network by adding nodes and edges from a list of documents.
      *
-     * @param docs        the list of RawJson documents
-     * @param networkView the view of the network to expand
+     * @param docs         the list of RawJson documents
+     * @param networkView  the view of the network to expand
      * @param fromNodeView the view of the node to expand from
-     * @param database    the ArangoDatabase instance
-     * @param query       the query string
+     * @param database     the ArangoDatabase instance
+     * @param metadata     the metadata of the network
      * @return the result of the network expansion
      * @throws ImportNetworkException if the expansion fails
      */
     public NetworkImportResult expandNetwork(List<RawJson> docs, CyNetworkView networkView, View<CyNode> fromNodeView,
-                                             ArangoDatabase database, String query) throws ImportNetworkException {
+            ArangoDatabase database, ArangoNetworkMetadata.NodeExpansionMetadata metadata)
+            throws ImportNetworkException {
         QueryResultValidator validator = new QueryResultValidator(docs);
         if (!validator.isEdgeList() && !validator.isPathList()) {
             throw new ImportNetworkException(
                     "The result of the query must be either a list of edges or a list of paths.");
         }
-        String nodeId = networkView.getModel().getDefaultNodeTable().getRow(fromNodeView.getModel().getSUID()).get(
-                "Id", String.class);
-        if (!validator.isNodeEdgePresent(nodeId)) {
+
+        if (!validator.isNodeEdgePresent(metadata.getNodeId())) {
             throw new ImportNetworkException(String.format(
-                    "The result does not contain an edge to the selected node '%1$s'.", nodeId));
+                    "The result does not contain an edge to the selected node '%1$s'.", metadata.getNodeId()));
         }
         CyNetwork network = networkView.getModel();
         ArangoNetworkAdapter adapter = this.networks
-                .get(network.getDefaultNetworkTable().getRow(network.getSUID()).get("uuid", String.class));
+                .get(network.getDefaultNetworkTable().getRow(network.getSUID()).get(Constants.NetworkColumns.ID,
+                        String.class));
         List<CyNode> newNodes;
         if (validator.isPathList()) {
-            newNodes = adapter.expandWithPath(docs, nodeId);
+            newNodes = adapter.expandNodeWithPath(docs, metadata);
         } else {
-            newNodes = adapter.expandWithEdges(docs, nodeId);
+            newNodes = adapter.expandNodeWithEdges(docs, metadata);
         }
         networkView.updateView();
         handleNetworkView(network, networkView);
@@ -236,5 +237,41 @@ public class NetworkManager {
                 nodes,
                 null);
         taskManager.execute(taskIterator);
+    }
+
+    /**
+     * Expands a network by adding nodes and edges from a list of documents.
+     *
+     * @param docs        the list of RawJson documents
+     * @param networkView the view of the network to expand
+     * @param database    the ArangoDatabase instance
+     * @param metadata    the metadata of the network
+     * @return the list of new nodes
+     * @throws ImportNetworkException if the expansion fails
+     */
+    public List<CyNode> expandNetwork(List<RawJson> docs, CyNetworkView networkView, ArangoDatabase database,
+            ArangoNetworkMetadata.NetworkExpansionMetadata metadata) throws ImportNetworkException {
+
+        QueryResultValidator validator = new QueryResultValidator(docs);
+        if (!validator.isEdgeList() && !validator.isPathList()) {
+            throw new ImportNetworkException(
+                    "The result of the query must be either a list of edges or a list of paths.");
+        }
+
+        CyNetwork network = networkView.getModel();
+        ArangoNetworkAdapter adapter = this.networks
+                .get(network.getDefaultNetworkTable().getRow(network.getSUID()).get(Constants.NetworkColumns.ID,
+                        String.class));
+        List<CyNode> newNodes;
+        if (validator.isEdgeList()) {
+            newNodes = adapter.expandNetworkEdges(docs, metadata);
+        } else {
+            newNodes = adapter.expandNetworkPaths(docs, metadata);
+        }
+
+        networkView.updateView();
+        handleNetworkView(network, networkView);
+
+        return newNodes;
     }
 }

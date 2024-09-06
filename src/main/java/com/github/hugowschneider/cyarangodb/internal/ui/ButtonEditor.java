@@ -42,8 +42,10 @@ public class ButtonEditor extends DefaultCellEditor {
      * Constructs a new ButtonEditor.
      *
      * @param checkBox       the JCheckBox used to delegate the cell editing
-     * @param action         the action command to be sent when the button is pressed
-     * @param actionListener the ActionListener to be notified when the button is pressed
+     * @param action         the action command to be sent when the button is
+     *                       pressed
+     * @param actionListener the ActionListener to be notified when the button is
+     *                       pressed
      */
     public ButtonEditor(JCheckBox checkBox, String action, ActionListener actionListener) {
         super(checkBox);
@@ -54,7 +56,9 @@ public class ButtonEditor extends DefaultCellEditor {
         button.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent arg0) {
-                fireEditingStopped();
+                stopCellEditing(); // Ensure cell editing is stopped before performing any action
+                actionListener
+                        .actionPerformed(new ActionEvent(ButtonEditor.this, ActionEvent.ACTION_PERFORMED, action));
             }
         });
     }
@@ -84,9 +88,6 @@ public class ButtonEditor extends DefaultCellEditor {
      */
     @Override
     public Object getCellEditorValue() {
-        if (isPushed) {
-            actionListener.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, action));
-        }
         isPushed = false;
         return label;
     }
@@ -100,13 +101,5 @@ public class ButtonEditor extends DefaultCellEditor {
     public boolean stopCellEditing() {
         isPushed = false;
         return super.stopCellEditing();
-    }
-
-    /**
-     * Notifies all listeners that editing has stopped.
-     */
-    @Override
-    protected void fireEditingStopped() {
-        super.fireEditingStopped();
     }
 }

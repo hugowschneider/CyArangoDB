@@ -1,0 +1,41 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 http://maven.apache.org/xsd/settings-1.2.0.xsd">
+    <mirrors>
+        <mirror>
+            <id>cytoscape_snapshots</id>
+            <mirrorOf>cytoscape_snapshots</mirrorOf>
+            <name>Cytoscape Snapshots</name>
+            <url>http://nrnb-nexus.ucsd.edu/repository/cytoscape_snapshots/</url>
+            <blocked>false</blocked>
+        </mirror>
+        <mirror>
+            <id>cytoscape_releases</id>
+            <mirrorOf>cytoscape_releases</mirrorOf>
+            <name>Cytoscape Releases</name>
+            <url>http://nrnb-nexus.ucsd.edu/repository/cytoscape_releases/</url>
+            <blocked>false</blocked>
+        </mirror>
+        <mirror>
+            <id>sonatype</id>
+            <mirrorOf>sonatype</mirrorOf>
+            <name>Sonatype</name>
+            <url>http://code.cytoscape.org/nexus/content/repositories/sonatype/</url>
+            <blocked>false</blocked>
+        </mirror>
+        <mirror>
+            <id>cytoscape_thirdparty</id>
+            <mirrorOf>cytoscape_thirdparty</mirrorOf>
+            <name>Cytoscape Third Party</name>
+            <url>http://nrnb-nexus.ucsd.edu/repository/cytoscape_thirdparty/</url>
+            <blocked>false</blocked>
+        </mirror>
+        <mirror>
+            <id>knopflerfish</id>
+            <mirrorOf>knopflerfish</mirrorOf>
+            <name>Knopflerfish Repository</name>
+            <url>http://resources.knopflerfish.org/repo/maven2/release</url>
+            <blocked>false</blocked>
+        </mirror>
+    </mirrors>
+</settings>

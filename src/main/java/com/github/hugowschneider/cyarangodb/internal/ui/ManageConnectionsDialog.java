@@ -1,11 +1,20 @@
 package com.github.hugowschneider.cyarangodb.internal.ui;
 
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Frame;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.util.Map;
+
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
@@ -21,14 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
-
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.Frame;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.util.Map;
 
 /**
  * Represents a dialog for managing connections to ArangoDB.
@@ -87,11 +88,41 @@ public class ManageConnectionsDialog extends JDialog {
     /**
      * Text field for entering the connection name.
      */
-    private JTextField nameField, hostField, portField, usernameField, passwordField, databaseField;
+    private JTextField nameField;
     /**
-     * Buttons for saving, validating, and canceling the operation.
+     * Text field for entering the connection host.
      */
-    private JButton saveButton, validateButton, cancelButton;
+    private JTextField hostField;
+    /**
+     * Text field for entering the connection port.
+     */
+    private JTextField portField;
+    /**
+     * Text field for entering the connection username.
+     */
+    private JTextField usernameField;
+    /**
+     * Text field for entering the connection database.
+     */
+    private JTextField databaseField;
+    /**
+     * Password field for entering the connection password.
+     */
+    private JPasswordField passwordField;
+    /**
+     * Button for saving the connection details.
+     */
+    private JButton saveButton;
+
+    /**
+     * Button for validating the connection details.
+     */
+    private JButton validateButton;
+
+    /**
+     * Button for canceling the operation.
+     */
+    private JButton cancelButton;
     /**
      * The connection manager for managing connections.
      */
@@ -99,7 +130,7 @@ public class ManageConnectionsDialog extends JDialog {
     /**
      * The name of the connection being edited.
      */
-    private String editedConnectionName = null;
+    private String editedConnectionId = null;
 
     /**
      * Constructs a new dialog for managing connections.
@@ -119,7 +150,17 @@ public class ManageConnectionsDialog extends JDialog {
 
         // Left Panel
         JPanel leftPanel = new JPanel(new BorderLayout());
-        tableModel = new DefaultTableModel(new Object[] { "Name", "Host", "Port", "Edit", "Delete", "Validate" }, 0);
+        tableModel = new DefaultTableModel(new Object[] { "ID", "Name", "Host", "Port", "Edit", "Delete", "Validate" },
+                0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                // Make the ID column non-editable
+                return column != 0 && super.isCellEditable(row, column);
+            }
+        };
+        connectionTable = new JTable(tableModel);
+        connectionTable.removeColumn(connectionTable.getColumnModel().getColumn(0)); // Hide the ID column
+
         connectionTable = new JTable(tableModel);
         leftPanel.add(new JScrollPane(connectionTable), BorderLayout.CENTER);
 
@@ -196,7 +237,7 @@ public class ManageConnectionsDialog extends JDialog {
         gbc.gridx = 0;
         gbc.gridy++;
         rightPanel.add(new JLabel("Password:"), gbc);
-        passwordField = new JTextField();
+        passwordField = new JPasswordField();
         passwordField.setPreferredSize(new Dimension(200, 25));
         gbc.gridx = 1;
         rightPanel.add(passwordField, gbc);
@@ -231,45 +272,39 @@ public class ManageConnectionsDialog extends JDialog {
         Map<String, ConnectionDetails> connections = connectionManager.getAllConnections();
         for (Map.Entry<String, ConnectionDetails> entry : connections.entrySet()) {
             ConnectionDetails details = entry.getValue();
-            tableModel.addRow(new Object[] { entry.getKey(), details.getHost(), details.getPort(), "Edit", "Delete",
+            tableModel.addRow(new Object[] { entry.getKey(), details.getName(), details.getHost(), details.getPort(),
+                    "Edit", "Delete",
                     "Validate" });
         }
     }
 
     private void saveConnection() {
+
         String name = nameField.getText();
         String host = hostField.getText();
         int port = Integer.parseInt(portField.getText());
         String username = usernameField.getText();
-        String password = passwordField.getText();
+        String password = new String(passwordField.getPassword());
         String database = databaseField.getText();
 
-        ConnectionDetails connectionDetails = new ConnectionDetails(host, port, username, password, database);
+        ConnectionDetails connectionDetails = new ConnectionDetails(name, host, port, username, password, database);
+        if (editedConnectionId == null) {
+            editedConnectionId = connectionManager.addConnection(connectionDetails);
+            tableModel.addRow(new Object[] { editedConnectionId, name, host, port, "Edit", "Delete", "Validate" });
+        } else {
 
-        if (editedConnectionName != null && !editedConnectionName.equals(name)) {
-            connectionManager.removeConnection(editedConnectionName);
-        }
-
-        connectionManager.addConnection(name, connectionDetails);
-
-        // Update the table model
-        boolean found = false;
-        for (int i = 0; i < tableModel.getRowCount(); i++) {
-            if (tableModel.getValueAt(i, 0).equals(editedConnectionName)) {
-                tableModel.setValueAt(name, i, 0);
-                tableModel.setValueAt(host, i, 1);
-                tableModel.setValueAt(port, i, 2);
-                found = true;
-                break;
+            connectionManager.updateConnectionDetails(editedConnectionId, connectionDetails);
+            // Update the table model
+            for (int i = 0; i < tableModel.getRowCount(); i++) {
+                if (tableModel.getValueAt(i, 0).equals(editedConnectionId)) {
+                    tableModel.setValueAt(name, i, 1);
+                    tableModel.setValueAt(host, i, 2);
+                    tableModel.setValueAt(port, i, 3);
+                    return;
+                }
             }
         }
 
-        if (!found) {
-            tableModel.addRow(new Object[] { name, host, port, "Edit", "Delete", "Validate" });
-        }
-
-        clearFields();
-        editedConnectionName = null;
     }
 
     private void clearFields() {
@@ -279,21 +314,22 @@ public class ManageConnectionsDialog extends JDialog {
         usernameField.setText("");
         passwordField.setText("");
         databaseField.setText("");
-        editedConnectionName = null;
+        editedConnectionId = null;
+        connectionTable.clearSelection();
     }
 
     private void editConnection() {
         int row = connectionTable.getSelectedRow();
-        String name = (String) tableModel.getValueAt(row, 0);
-        ConnectionDetails details = connectionManager.getConnection(name);
+        String id = (String) tableModel.getValueAt(row, 0);
+        ConnectionDetails details = connectionManager.getConnection(id);
         if (details != null) {
-            nameField.setText(name);
+            nameField.setText(details.getName());
             hostField.setText(details.getHost());
             portField.setText(String.valueOf(details.getPort()));
             usernameField.setText(details.getUser());
             passwordField.setText(details.getPassword());
             databaseField.setText(details.getDatabase());
-            editedConnectionName = name;
+            editedConnectionId = id;
         }
     }
 
@@ -313,14 +349,15 @@ public class ManageConnectionsDialog extends JDialog {
                 String name = (String) tableModel.getValueAt(row, 0);
                 isValid = connectionManager.validate(name);
             } else {
-
+                String name = nameField.getText();
                 String host = hostField.getText();
                 int port = Integer.parseInt(portField.getText());
                 String username = usernameField.getText();
                 String password = passwordField.getText();
                 String database = databaseField.getText();
 
-                ConnectionDetails connectionDetails = new ConnectionDetails(host, port, username, password, database);
+                ConnectionDetails connectionDetails = new ConnectionDetails(name, host, port, username, password,
+                        database);
 
                 isValid = connectionManager.validate(connectionDetails);
 

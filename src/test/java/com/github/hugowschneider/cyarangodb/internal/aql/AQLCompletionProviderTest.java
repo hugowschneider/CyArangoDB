@@ -31,13 +31,13 @@ public class AQLCompletionProviderTest {
     private AQLCompletionProvider completionProvider;
     private JTextComponent textComponent;
     private ConnectionManager connectionManager;
-    private static final String CONNECTION_NAME = "test-connection";
+    private String connectionId;
 
     @BeforeAll
     public void setUpAll() {
         ConnectionDetails connectionDetails = Helper.createConnectionDetails();
         connectionManager = new ConnectionManager("./target/test-resources");
-        connectionManager.addConnection(CONNECTION_NAME, connectionDetails);
+        connectionId = connectionManager.addConnection(connectionDetails);
 
     }
 
@@ -49,7 +49,7 @@ public class AQLCompletionProviderTest {
 
     @BeforeEach
     public void setUp() {
-        completionProvider = new AQLCompletionProvider(connectionManager.getArangoDatabase(CONNECTION_NAME));
+        completionProvider = new AQLCompletionProvider(connectionManager.getArangoDatabase(connectionId));
         textComponent = new JTextArea();
     }
 
