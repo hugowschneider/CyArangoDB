@@ -49,17 +49,16 @@ jobs:
           distribution: "microsoft"
           java-version: "21"
           cache: maven
-          settings-path: .github/maven/settings.xml
       - name: Maven Version Check
         run: mvn --version
       - name: Compile
-        run: mvn --batch-mode compile
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml compile
       - name: Run tests
         run: mvn -B test
       - name: Install
-        run: mvn --batch-mode install -DskipTests
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml install -DskipTests
       - name: Javadoc Jar
-        run: mvn --batch-mode javadoc:jar
+        run: mvn --batch-mode --settings .github/maven/settingsl.xml javadoc:jar
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         env:
