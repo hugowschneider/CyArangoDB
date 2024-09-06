@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 
@@ -100,11 +101,6 @@ public class ConnectionManager {
     private static final Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ConnectionManager.class);
 
     /**
-     * The name of the JSON file used to store the connections.
-     */
-    private static final String ARANGODB_CONNECTION_JSON = "arangodb-connection.json";
-
-    /**
      * The map of connection names to connection details.
      */
     private Map<String, ConnectionDetails> connections;
@@ -117,6 +113,11 @@ public class ConnectionManager {
      * The Gson object used for JSON serialization and deserialization.
      */
     private final Gson gson;
+
+    /**
+     * The name of the JSON file used to store the connections.
+     */
+    public static final String ARANGODB_CONNECTION_JSON = "arangodb-connection.json";
 
     /**
      * Constructs a new ConnectionManager with configuration folder path set to the
@@ -163,32 +164,35 @@ public class ConnectionManager {
     /**
      * Adds a new connection with the specified name and details.
      * 
-     * @param name    the name of the connection
      * @param details the connection details
+     * 
+     * @return the connection uuid
      */
-    public void addConnection(String name, ConnectionDetails details) {
-        connections.put(name, details);
+    public String addConnection(ConnectionDetails details) {
+        String uuid = UUID.randomUUID().toString();
+        connections.put(uuid, details);
         saveConnections();
+        return uuid;
     }
 
     /**
      * Removes a connection with the specified name.
      * 
-     * @param name the name of the connection to remove
+     * @param uuid the connection uuid
      */
-    public void removeConnection(String name) {
-        connections.remove(name);
+    public void removeConnection(String uuid) {
+        connections.remove(uuid);
         saveConnections();
     }
 
     /**
      * Gets a connection with the specified name.
      * 
-     * @param name the name of the connection
+     * @param uuid the connection uuid
      * @return the connection details
      */
-    public ConnectionDetails getConnection(String name) {
-        return connections.get(name);
+    public ConnectionDetails getConnection(String uuid) {
+        return connections.get(uuid);
     }
 
     /**
@@ -203,27 +207,28 @@ public class ConnectionManager {
     /**
      * Adds a query to the history of a connection.
      * 
-     * @param connectionName the name of the connection
-     * @param query          the query to add to the history
+     * @param uuid  the connection uuid
+     * @param query the query to add to the history
      */
-    public void addQueryToHistory(String connectionName, String query) {
-        this.getConnection(connectionName).addQueryToHistory(query);
+    public LocalDateTime addQueryToHistory(String uuid, String query) {
+        LocalDateTime dateTime =  this.getConnection(uuid).addQueryToHistory(query);
         this.saveConnections();
+        return dateTime;
 
     }
 
     /**
      * Gets the query history of a connection.
      * 
-     * @param connectionName the name of the connection
+     * @param uuid the connection uuid
      * @return a list of query history items
      */
-    public List<ConnectionDetails.QueryHistory> getQueryHistory(String connectionName) {
-        ConnectionDetails connection = this.getConnection(connectionName);
+    public List<ConnectionDetails.QueryHistory> getQueryHistory(String uuid) {
+        ConnectionDetails connection = this.getConnection(uuid);
         if (connection == null) {
             return Collections.emptyList();
         } else {
-            return this.getConnection(connectionName).getHistory();
+            return this.getConnection(uuid).getHistory();
         }
 
     }
@@ -231,11 +236,11 @@ public class ConnectionManager {
     /**
      * Validates a connection with the specified name.
      * 
-     * @param name the name of the connection
+     * @param uuid the connection uuid
      * @return true if the connection is valid, false otherwise
      */
-    public boolean validate(String name) {
-        return this.validate(this.getConnection(name));
+    public boolean validate(String uuid) {
+        return this.validate(this.getConnection(uuid));
     }
 
     /**
@@ -268,26 +273,28 @@ public class ConnectionManager {
     /**
      * Runs a query from the query history of a connection.
      * 
-     * @param connectionName the name of the connection
-     * @param index          the index of the query in the history
+     * @param uuid  the connection uuid
+     * 
+     * @param index the index of the query in the history
      * @return a list of RawJson documents
      * @throws ImportNetworkException if an error occurs during query execution
      */
-    public List<RawJson> runHistory(String connectionName, int index) throws ImportNetworkException {
-        List<ConnectionDetails.QueryHistory> history = getConnection(connectionName).getHistory();
-        return execute(connectionName, history.get(index).getQuery(), false);
+    public List<RawJson> runHistory(String uuid, int index) throws ImportNetworkException {
+        List<ConnectionDetails.QueryHistory> history = getConnection(uuid).getHistory();
+        return execute(uuid, history.get(index).getQuery(), false);
 
     }
 
     /**
      * Deletes a query from the query history of a connection.
      * 
-     * @param connectionName the name of the connection
-     * @param index          the index of the query in the history
+     * @param uuid  the connection uuid
+     * 
+     * @param index the index of the query in the history
      */
-    public void deleteQueryHistory(String connectionName, int index) {
+    public void deleteQueryHistory(String uuid, int index) {
         // Implementation for deleting the query history by index
-        List<ConnectionDetails.QueryHistory> history = getConnection(connectionName).getHistory();
+        List<ConnectionDetails.QueryHistory> history = getConnection(uuid).getHistory();
         if (index >= 0 && index < history.size()) {
             history.remove(index);
         }
@@ -297,33 +304,34 @@ public class ConnectionManager {
     /**
      * Executes a query on a connection.
      * 
-     * @param connectionName the name of the connection
-     * @param query          the query to execute
+     * @param uuid  the connection uuid
+     * 
+     * @param query the query to execute
      * @return a list of RawJson documents
      * @throws ImportNetworkException if an error occurs during query execution
      */
-    public List<RawJson> execute(String connectionName, String query) throws ImportNetworkException {
-        return execute(connectionName, query, true);
+    public List<RawJson> execute(String uuid, String query) throws ImportNetworkException {
+        return execute(uuid, query, true);
     }
 
     /**
      * Executes a query on a connection.
      * 
-     * @param connectionName the name of the connection
-     * @param query          the query to execute
+     * @param uuid             the connection uuid
+     * @param query            the query to execute
      * @param includeInHistory whether to include the query in the history
      * @return a list of RawJson documents
      * @throws ImportNetworkException if an error occurs during query execution
      */
-    public List<RawJson> execute(String connectionName, String query, boolean includeInHistory)
+    public List<RawJson> execute(String uuid, String query, boolean includeInHistory)
             throws ImportNetworkException {
-        this.validate(connectionName);
-        ArangoDatabase database = getArangoDatabase(getConnection(connectionName));
+        this.validate(uuid);
+        ArangoDatabase database = getArangoDatabase(getConnection(uuid));
         validate(database);
 
         List<RawJson> docs = database.query(query, RawJson.class).asListRemaining();
         if (includeInHistory) {
-            this.addQueryToHistory(connectionName, query);
+            this.addQueryToHistory(uuid, query);
         }
         return docs;
 
@@ -332,17 +340,28 @@ public class ConnectionManager {
     /**
      * Gets the ArangoDatabase object for a connection with the specified name.
      * 
-     * @param connectionName the name of the connection
+     * @param uuid the connection uuid
      * @return the ArangoDatabase object
      */
-    public ArangoDatabase getArangoDatabase(String connectionName) {
-        return getArangoDatabase(getConnection(connectionName));
+    public ArangoDatabase getArangoDatabase(String uuid) {
+        return getArangoDatabase(getConnection(uuid));
+    }
+
+    /**
+     * Updates the connection details for a connection with the specified name.
+     * 
+     * @param uuid             the connection uuid
+     * @param connectionDetails the connection details
+     */
+    public void updateConnectionDetails(String uuid, ConnectionDetails connectionDetails) {
+        connections.put(uuid, connectionDetails);
+        saveConnections();
     }
 
     /**
      * Saves connections to a file.
      */
-    private void saveConnections() {
+    public void saveConnections() {
         try (Writer writer = new FileWriter(filePath)) {
             gson.toJson(connections, writer);
         } catch (IOException e) {

@@ -31,23 +31,35 @@ import com.arangodb.entity.CollectionType;
 import com.arangodb.model.CollectionsReadOptions;
 
 /**
- * AQLCompletionProvider is a class that provides auto-completion suggestions for AQL (ArangoDB Query Language) in a text component.
+ * AQLCompletionProvider is a class that provides auto-completion suggestions
+ * for AQL (ArangoDB Query Language) in a text component.
  * It extends the AbstractCompletionProvider class.
  * 
- * The AQLCompletionProvider class contains arrays of AQL keywords and functions, as well as collections, edges, and graph names.
- * It also has methods to update the database completions, get the already entered text, get parameterized completions, and get completions at a specific position.
- * The class uses the ArangoDatabase class to interact with the ArangoDB database.
+ * The AQLCompletionProvider class contains arrays of AQL keywords and
+ * functions, as well as collections, edges, and graph names.
+ * It also has methods to update the database completions, get the already
+ * entered text, get parameterized completions, and get completions at a
+ * specific position.
+ * The class uses the ArangoDatabase class to interact with the ArangoDB
+ * database.
  * 
- * AQLCompletionProvider is typically used in conjunction with a JTextComponent to provide auto-completion suggestions while typing AQL queries.
- * It can be initialized with an ArangoDatabase instance and can be updated with a new ArangoDatabase instance to reflect changes in the database.
+ * AQLCompletionProvider is typically used in conjunction with a JTextComponent
+ * to provide auto-completion suggestions while typing AQL queries.
+ * It can be initialized with an ArangoDatabase instance and can be updated with
+ * a new ArangoDatabase instance to reflect changes in the database.
  * 
- * The class provides context-aware completions based on the previous word entered by the user.
- * It filters the completions based on the current word and the previous word, and returns a list of completions sorted alphabetically.
+ * The class provides context-aware completions based on the previous word
+ * entered by the user.
+ * It filters the completions based on the current word and the previous word,
+ * and returns a list of completions sorted alphabetically.
  * 
- * AQLCompletionProvider also inherits the basic completion functionality from the AbstractCompletionProvider class.
- * It adds AQL keywords and functions as basic completions, and provides parameterized completions for AQL functions.
+ * AQLCompletionProvider also inherits the basic completion functionality from
+ * the AbstractCompletionProvider class.
+ * It adds AQL keywords and functions as basic completions, and provides
+ * parameterized completions for AQL functions.
  * 
- * Note: This class requires the ArangoDB Java driver to be included in the project.
+ * Note: This class requires the ArangoDB Java driver to be included in the
+ * project.
  */
 public class AQLCompletionProvider extends AbstractCompletionProvider {
 
@@ -122,7 +134,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	private List<Completion> lastParameterizedCompletionsAt;
 
 	/**
-	 * Arango Database connection 
+	 * Arango Database connection
 	 */
 	private ArangoDatabase database;
 
@@ -152,7 +164,8 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	private String previousWord;
 
 	/**
-	 * AQLCompletionProvider is responsible for providing code completion suggestions for AQL (ArangoDB Query Language).
+	 * AQLCompletionProvider is responsible for providing code completion
+	 * suggestions for AQL (ArangoDB Query Language).
 	 * It initializes the AQL completions and updates the database completions.
 	 *
 	 * @param database the ArangoDatabase instance used for querying the database
@@ -194,7 +207,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			Collections.sort(edgeCollectionNames);
 			Collections.sort(graphNames);
 		} catch (Exception e) {
-			LOGGER.error("Error while updating database completions", e);
+			LOGGER.debug("Error while updating database completions", e);
 		}
 
 	}
@@ -305,7 +318,8 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	/**
 	 * Returns the parameterized completions for the specified text component.
-	 * This method is used to provide completions for AQL functions that require parameters.
+	 * This method is used to provide completions for AQL functions that require
+	 * parameters.
 	 *
 	 * @param tc the text component
 	 * @return a list of parameterized completions
@@ -388,8 +402,10 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	}
 
 	/**
-	 * Returns the completions that are context-aware based on the current word and the previous word.
-	 * This method is used to provide completions that are relevant to the context in which they are used.
+	 * Returns the completions that are context-aware based on the current word and
+	 * the previous word.
+	 * This method is used to provide completions that are relevant to the context
+	 * in which they are used.
 	 *
 	 * @param currentWord  the current word being entered
 	 * @param previousWord the previous word entered by the user
@@ -399,8 +415,8 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 		List<String> arangoCompletions = new ArrayList<>();
 		final List<Completion> completions;
 		if (Arrays.asList(AQL_KEYWORDS_BEFORE_COLLECTIONS).contains(previousWord)) {
-			arangoCompletions.addAll(filterList(docCollectionNames, currentWord).toList());
-			arangoCompletions.addAll(filterList(edgeCollectionNames, currentWord).toList());
+			arangoCompletions.addAll(filterList(docCollectionNames, currentWord).collect(Collectors.toList()));
+			arangoCompletions.addAll(filterList(edgeCollectionNames, currentWord).collect(Collectors.toList()));
 			completions = arangoCompletions.stream().sorted().map((str) -> new BasicCompletion(this, str))
 					.collect(Collectors.toList());
 		} else if (Arrays.asList(AQL_KEYWORDS_BEFORE_NODES).contains(previousWord)) {
@@ -425,7 +441,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 			} else {
 				arangoCompletions
 						.addAll(filterList(docCollectionNames, currentWord.replace("'", "").replace("\"", ""))
-								.toList());
+								.collect(Collectors.toList()));
 
 				completions = arangoCompletions.stream().sorted()
 						.map((str) -> new BasicCompletion(this, String.format(
@@ -448,7 +464,8 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	/**
 	 * Returns the completions for the specified text component.
-	 * This method is used to provide completions based on the text entered by the user.
+	 * This method is used to provide completions based on the text entered by the
+	 * user.
 	 *
 	 * @param arg0 the text component
 	 * @return a list of completions
@@ -478,7 +495,8 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 
 	/**
 	 * Returns the completions at the specified position in the text component.
-	 * This method is used to provide completions at a specific position in the text.
+	 * This method is used to provide completions at a specific position in the
+	 * text.
 	 *
 	 * @param tc the text component
 	 * @param p  the position in the text component

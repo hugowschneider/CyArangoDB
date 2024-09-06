@@ -13,6 +13,7 @@ import javax.swing.JTextField;
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkImportResult;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
@@ -70,15 +71,15 @@ public class ImportNetworkDialog extends BaseNetworkDialog {
      *
      * @param docs     the list of RawJson documents
      * @param database the ArangoDatabase instance
-     * @param query    the query string
+     * @param metadata the metadata of the network
      * @throws ImportNetworkException if an error occurs during network import
      */
     @Override
-    protected void processQueryResult(List<RawJson> docs, ArangoDatabase database, String query)
+    protected void processQueryResult(List<RawJson> docs, ArangoDatabase database, ArangoNetworkMetadata metadata)
             throws ImportNetworkException {
 
         NetworkImportResult result = networkManager.importNetwork(docs, database, networkNameField.getText().trim(),
-                query);
+                metadata);
         JOptionPane.showMessageDialog(this,
                 String.format("Network imported with %1$d nodes and %2$d edges", result.getNodeCount(),
                         result.getEdgeCount()));

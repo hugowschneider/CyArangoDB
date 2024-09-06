@@ -20,6 +20,8 @@ import org.cytoscape.view.model.View;
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata;
+import com.github.hugowschneider.cyarangodb.internal.network.Constants;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkImportResult;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
@@ -58,7 +60,7 @@ public class ExpandNodeDialog extends BaseNetworkDialog {
      * @param networkView       the view of the network containing the node
      */
     public ExpandNodeDialog(ConnectionManager connectionManager, NetworkManager networkManager, JFrame parentFrame,
-                            View<CyNode> nodeView, CyNetworkView networkView) {
+            View<CyNode> nodeView, CyNetworkView networkView) {
         super(connectionManager, parentFrame, "Expand Node");
         this.nodeView = nodeView;
         this.networkView = networkView;
@@ -95,13 +97,17 @@ public class ExpandNodeDialog extends BaseNetworkDialog {
      *
      * @param docs     the list of RawJson documents
      * @param database the ArangoDatabase instance
-     * @param query    the query string
+     * @param metadata the metadata of the network
      * @throws ImportNetworkException if an error occurs during network import
      */
     @Override
-    protected void processQueryResult(List<RawJson> docs, ArangoDatabase database, String query)
+    protected void processQueryResult(List<RawJson> docs, ArangoDatabase database, ArangoNetworkMetadata metadata)
             throws ImportNetworkException {
-        NetworkImportResult result = networkManager.expandNetwork(docs, networkView, nodeView, database, query);
+        String nodeId = networkView.getModel().getDefaultNodeTable().getRow(networkView.getModel().getSUID()).get(
+                Constants.NodeColumns.ID, String.class);
+        NetworkImportResult result = networkManager.expandNetwork(docs, networkView, nodeView, database,
+                new ArangoNetworkMetadata.NodeExpansionMetadata(nodeId, metadata.getQuery(),
+                        metadata.getConnectionId()));
         JOptionPane.showMessageDialog(this,
                 String.format("Network was expanded with %1$d nodes", result.getNodeCount(), result.getEdgeCount()));
     }

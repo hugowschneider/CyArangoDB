@@ -14,6 +14,7 @@ public class ConnectionDetails {
     private String password;
     private String database;
     private List<QueryHistory> history;
+    private String name;
 
     /**
      * Constructs a new ConnectionDetails instance.
@@ -24,7 +25,8 @@ public class ConnectionDetails {
      * @param password the database password
      * @param database the database name
      */
-    public ConnectionDetails(String host, int port, String user, String password, String database) {
+    public ConnectionDetails(String name, String host, int port, String user, String password, String database) {
+        this.name = name;
         this.host = host;
         this.port = port;
         this.user = user;
@@ -40,6 +42,15 @@ public class ConnectionDetails {
      */
     public String getHost() {
         return host;
+    }
+
+    /**
+     * Gets the connection name.
+     *
+     * @return the name
+     */
+    public String getName() {
+        return name;
     }
 
     /**
@@ -94,12 +105,15 @@ public class ConnectionDetails {
      * Adds a query to the history.
      *
      * @param query the query to add
+     * @return the time the query was executed
      */
-    public void addQueryToHistory(String query) {
+    public LocalDateTime addQueryToHistory(String query) {
         if (history == null) {
             history = new ArrayList<>();
         }
-        history.add(new QueryHistory(query, LocalDateTime.now()));
+        LocalDateTime now = LocalDateTime.now();
+        history.add(new QueryHistory(query, now));
+        return now;
     }
 
     /**
