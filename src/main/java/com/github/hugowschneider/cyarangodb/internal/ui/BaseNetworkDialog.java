@@ -128,6 +128,11 @@ public abstract class BaseNetworkDialog extends JDialog {
     private AQLCompletionProvider completionProvider;
 
     /**
+     * The tabbed pane for switching between query and history views.
+     */
+    private JTabbedPane tabbedPane;
+
+    /**
      * Constructs a new BaseNetworkDialog.
      *
      * @param connectionManager the connection manager
@@ -204,7 +209,7 @@ public abstract class BaseNetworkDialog extends JDialog {
 
         add(topPanel, BorderLayout.NORTH);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane = new JTabbedPane();
 
         JPanel queryPanel = new JPanel(new BorderLayout());
         Component centerComponent = renderCenterComponent();
@@ -233,23 +238,6 @@ public abstract class BaseNetworkDialog extends JDialog {
         updateHistoryList();
         // Initialize the completion provider with the first connection
         updateCompletionProvider();
-    }
-
-    private void updateCompletionProvider() {
-        ArangoDatabase database = connectionManager
-                .getArangoDatabase(((ComboBoxItem) connectionDropdown.getSelectedItem()).getValue());
-
-        SwingUtilities.invokeLater(() -> {
-            try {
-                database.getVersion();
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(this, "Error connecting to database",
-                        "Error connecting to database. Some auto-completion features may not work.",
-                        JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            this.completionProvider.setDatabase(database);
-        });
     }
 
     /**
@@ -404,6 +392,8 @@ public abstract class BaseNetworkDialog extends JDialog {
         int row = historyTable.getSelectedRow();
         String query = (String) historyTableModel.getValueAt(row, 1);
         queryTextArea.setText(query);
+        tabbedPane.setSelectedIndex(0);
+
     }
 
     /**
@@ -414,6 +404,23 @@ public abstract class BaseNetworkDialog extends JDialog {
         ComboBoxItem item = (ComboBoxItem) connectionDropdown.getSelectedItem();
         connectionManager.deleteQueryHistory(item.getValue(), row);
         updateHistoryList();
+    }
+
+    private void updateCompletionProvider() {
+        ArangoDatabase database = connectionManager
+                .getArangoDatabase(((ComboBoxItem) connectionDropdown.getSelectedItem()).getValue());
+
+        SwingUtilities.invokeLater(() -> {
+            try {
+                database.getVersion();
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, "Error connecting to database",
+                        "Error connecting to database. Some auto-completion features may not work.",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            this.completionProvider.setDatabase(database);
+        });
     }
 
     /**

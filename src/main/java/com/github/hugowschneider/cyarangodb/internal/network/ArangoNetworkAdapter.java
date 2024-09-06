@@ -21,6 +21,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata.NetworkExpansionMetadata;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -197,7 +198,8 @@ public class ArangoNetworkAdapter {
     /**
      * Import a list of RawJson documents representing edges to a Cytoscape network.
      *
-     * @param docs the list of RawJson documents
+     * @param docs     the list of RawJson documents
+     * @param metadata the metadata of the network
      * @return the Cytoscape network
      */
     public CyNetwork importEdges(List<RawJson> docs, ArangoNetworkMetadata metadata) {
@@ -208,7 +210,8 @@ public class ArangoNetworkAdapter {
     /**
      * Import a list of RawJson documents representing paths to a Cytoscape network.
      *
-     * @param docs the list of RawJson documents
+     * @param docs     the list of RawJson documents
+     * @param metadata the metadata of the network
      * @return the Cytoscape network
      */
     public CyNetwork importPaths(List<RawJson> docs, ArangoNetworkMetadata metadata) {
@@ -222,8 +225,8 @@ public class ArangoNetworkAdapter {
     /**
      * Expands a network with a list of paths.
      *
-     * @param docs   the list of RawJson documents representing paths
-     * @param nodeId the ID of the node to expand from
+     * @param docs     the list of RawJson documents representing paths
+     * @param metadata the metadata of the network
      * @return the list of new Cytoscape nodes
      */
     public List<CyNode> expandNodeWithPath(List<RawJson> docs, ArangoNetworkMetadata.NodeExpansionMetadata metadata) {
@@ -240,7 +243,7 @@ public class ArangoNetworkAdapter {
      * Expands a network with a list of edges.
      *
      * @param docs   the list of RawJson documents representing edges
-     * @param nodeId the ID of the node to expand from
+     * @param metadata the metadata of the network
      * @return the list of new Cytoscape nodes
      */
     public List<CyNode> expandNodeWithEdges(List<RawJson> docs, ArangoNetworkMetadata.NodeExpansionMetadata metadata) {
@@ -321,7 +324,8 @@ public class ArangoNetworkAdapter {
     /**
      * Adapts a list of BaseEdgeDocument objects to a Cytoscape network.
      *
-     * @param edges the list of BaseEdgeDocument objects
+     * @param edges    the list of BaseEdgeDocument objects
+     * @param metadata the metadata of the network
      * @return the Cytoscape network
      */
     private CyNetwork importNetwork(Iterable<BaseEdgeDocument> edges, ArangoNetworkMetadata metadata) {
@@ -404,12 +408,10 @@ public class ArangoNetworkAdapter {
     /**
      * Expands a network with a list of edges.
      *
-     * @param edges  the list of BaseEdgeDocument objects
-     * @param nodeId the ID of the node to expand from
+     * @param edges the list of BaseEdgeDocument objects
      * @return the list of new Cytoscape nodes
      */
-    private List<CyNode> expandNode(List<BaseEdgeDocument> edges,
-            ArangoNetworkMetadata.NodeExpansionMetadata metadata) {
+    private List<CyNode> expandNetwork(List<BaseEdgeDocument> edges) {
         List<CyNode> newNodes = new ArrayList<>();
 
         this.loadedNodes.values().forEach((doc) -> {
@@ -444,12 +446,79 @@ public class ArangoNetworkAdapter {
             addEdgeAttributes(edge, collection, row);
         });
 
+        return newNodes;
+    }
+
+    /**
+     * Expands a network with a list of edges.
+     *
+     * @param edges  the list of BaseEdgeDocument objects
+     * @param nodeId the ID of the node to expand from
+     * @return the list of new Cytoscape nodes
+     */
+    private List<CyNode> expandNode(List<BaseEdgeDocument> edges,
+            ArangoNetworkMetadata.NodeExpansionMetadata metadata) {
+        List<CyNode> newNodes = expandNetwork(edges);
+        CyRow row = network.getDefaultNetworkTable().getRow(network.getSUID());
+
         ArangoNetworkMetadata networkMetadata = deserialArangoNetworkMetadata(
-                network.getDefaultNetworkTable().getRow(network.getSUID())
-                        .get(Constants.NetworkColumns.ARANGO_NETWORK_METADATA, String.class));
+                row.get(Constants.NetworkColumns.ARANGO_NETWORK_METADATA, String.class));
 
         networkMetadata.addNodeExpansion(metadata);
 
+        row.set(Constants.NetworkColumns.ARANGO_NETWORK_METADATA, gson.toJson(networkMetadata));
+
         return newNodes;
+    }
+
+    /**
+     * Expands a network with a list of edges.
+     *
+     * @param docs     the list of RawJson documents representing edges
+     * @param metadata the metadata of the network
+     * @return the list of new Cytoscape nodes
+     */
+    public List<CyNode> expandNetworkEdges(List<RawJson> docs, NetworkExpansionMetadata metadata) {
+        List<BaseEdgeDocument> edges = jsonToEdges(docs);
+        return expandNetwork(edges, metadata);
+    }
+
+    /**
+     * Expands a network with a list of edges.
+     *
+     * @param edges  the list of BaseEdgeDocument objects
+     * @param nodeId the ID of the node to expand from
+     * @return the list of new Cytoscape nodes
+     */
+    private List<CyNode> expandNetwork(List<BaseEdgeDocument> edges,
+            NetworkExpansionMetadata metadata) {
+        List<CyNode> newNodes = expandNetwork(edges);
+        CyRow row = network.getDefaultNetworkTable().getRow(network.getSUID());
+
+        ArangoNetworkMetadata networkMetadata = deserialArangoNetworkMetadata(
+                row.get(Constants.NetworkColumns.ARANGO_NETWORK_METADATA, String.class));
+
+        networkMetadata.addNetworkExpansion(metadata);
+
+        row.set(Constants.NetworkColumns.ARANGO_NETWORK_METADATA, gson.toJson(networkMetadata));
+
+        return newNodes;
+    }
+
+    /**
+     * Expands a network with a list of paths.
+     *
+     * @param docs     the list of RawJson documents representing paths
+     * @param metadata the metadata of the network
+     * @return the list of new Cytoscape nodes
+     */
+    public List<CyNode> expandNetworkPaths(List<RawJson> docs, NetworkExpansionMetadata metadata) {
+        Path path = jsonToPath(docs);
+        path.getNodes().forEach((vertex) -> {
+            if (!loadedNodes.containsKey(vertex.getId())) {
+                loadedNodes.put(vertex.getId(), vertex);
+            }
+        });
+        return expandNetwork(path.getEdges(), metadata);
     }
 }

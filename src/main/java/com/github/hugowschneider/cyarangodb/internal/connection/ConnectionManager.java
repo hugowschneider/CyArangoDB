@@ -209,6 +209,7 @@ public class ConnectionManager {
      * 
      * @param uuid  the connection uuid
      * @param query the query to add to the history
+     * @return the date and time the query was added to the history
      */
     public LocalDateTime addQueryToHistory(String uuid, String query) {
         LocalDateTime dateTime =  this.getConnection(uuid).addQueryToHistory(query);

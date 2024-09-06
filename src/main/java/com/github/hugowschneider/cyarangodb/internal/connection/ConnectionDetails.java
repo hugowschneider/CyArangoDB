@@ -19,6 +19,7 @@ public class ConnectionDetails {
     /**
      * Constructs a new ConnectionDetails instance.
      *
+     * @param name     the connection name
      * @param host     the database host
      * @param port     the database port
      * @param user     the database user

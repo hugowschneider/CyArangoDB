@@ -25,6 +25,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 
 import com.arangodb.util.RawJson;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata.NetworkExpansionMetadata;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata.NodeExpansionMetadata;
 import com.github.hugowschneider.cyarangodb.internal.test.DependsOnConnectionManager;
 
 @TestInstance(Lifecycle.PER_CLASS)
@@ -133,7 +135,8 @@ public class ArangoNetworkAdapterTest extends DependsOnConnectionManager {
         }
     }
 
-    private void assertNodeExpansion(CyNetwork network, List<CyNode> newNodes, String expandNodeId) {
+    private void assertExpansion(CyNetwork network, List<CyNode> newNodes, String query, String connectionId,
+            String expandNodeId) {
         List<String> expectedNewNodeIds = List.of(
                 "imdb_vertices/21714",
                 "imdb_vertices/21715",
@@ -204,6 +207,23 @@ public class ArangoNetworkAdapterTest extends DependsOnConnectionManager {
 
         assertEquals(allExpectedEdges.size(), newEdgeCount,
                 "The number of new edges does not match the expected count.");
+
+        CyRow row = network.getDefaultNetworkTable().getRow(network.getSUID());
+        String pluginMetadata = row.get("cyArangoDBMetadata", String.class);
+        assertNotNull(pluginMetadata);
+        ArangoNetworkMetadata metadata = adapter.deserialArangoNetworkMetadata(pluginMetadata);
+        if (expandNodeId != null) {
+            NodeExpansionMetadata nodeMetadata = metadata.getNodeExpansions().getFirst();
+            assertEquals(expandNodeId, nodeMetadata.getNodeId());
+            assertEquals(query, nodeMetadata.getQuery());
+            assertEquals(connectionId, nodeMetadata.getConnectionId());
+
+        } else {
+            NetworkExpansionMetadata nodeMetadata = metadata.getNetworkExpansions().getFirst();
+            assertEquals(query, nodeMetadata.getQuery());
+            assertEquals(connectionId, nodeMetadata.getConnectionId());
+
+        }
     }
 
     @Test
@@ -225,7 +245,7 @@ public class ArangoNetworkAdapterTest extends DependsOnConnectionManager {
     }
 
     @Test
-    public void testExpandNetworkPath() throws ImportNetworkException {
+    public void testExpandNodekPath() throws ImportNetworkException {
         List<RawJson> result = connectionManager.execute(connectionId, IMPORT_PATH_QUERY);
         CyNetwork network = adapter.importPaths(result, new ArangoNetworkMetadata(IMPORT_PATH_QUERY, connectionId));
 
@@ -233,7 +253,31 @@ public class ArangoNetworkAdapterTest extends DependsOnConnectionManager {
         List<CyNode> newNodes = adapter.expandNodeWithPath(result,
                 new ArangoNetworkMetadata.NodeExpansionMetadata(EXPAND_NODE_ID, EXPAND_PATH_QUERY, connectionId));
 
-        assertNodeExpansion(network, newNodes, EXPAND_NODE_ID);
+        assertExpansion(network, newNodes, EXPAND_PATH_QUERY, connectionId, EXPAND_NODE_ID);
+    }
+
+    @Test
+    public void testExpandNodeEdge() throws ImportNetworkException {
+        List<RawJson> result = connectionManager.execute(connectionId, IMPORT_EDGE_QUERY);
+        CyNetwork network = adapter.importEdges(result, new ArangoNetworkMetadata(IMPORT_EDGE_QUERY, connectionId));
+
+        result = connectionManager.execute(connectionId, EXPAND_EDGE_QUERY);
+        List<CyNode> newNodes = adapter.expandNodeWithEdges(result,
+                new ArangoNetworkMetadata.NodeExpansionMetadata(EXPAND_NODE_ID, EXPAND_EDGE_QUERY, connectionId));
+
+        assertExpansion(network, newNodes, EXPAND_EDGE_QUERY, connectionId, EXPAND_NODE_ID);
+    }
+
+    @Test
+    public void testExpandNetworkPath() throws ImportNetworkException {
+        List<RawJson> result = connectionManager.execute(connectionId, IMPORT_PATH_QUERY);
+        CyNetwork network = adapter.importPaths(result, new ArangoNetworkMetadata(IMPORT_PATH_QUERY, connectionId));
+
+        result = connectionManager.execute(connectionId, EXPAND_PATH_QUERY);
+        List<CyNode> newNodes = adapter.expandNetworkPaths(result,
+                new ArangoNetworkMetadata.NetworkExpansionMetadata(EXPAND_PATH_QUERY, connectionId));
+
+        assertExpansion(network, newNodes, EXPAND_PATH_QUERY, connectionId, null);
     }
 
     @Test
@@ -242,10 +286,10 @@ public class ArangoNetworkAdapterTest extends DependsOnConnectionManager {
         CyNetwork network = adapter.importEdges(result, new ArangoNetworkMetadata(IMPORT_EDGE_QUERY, connectionId));
 
         result = connectionManager.execute(connectionId, EXPAND_EDGE_QUERY);
-        List<CyNode> newNodes = adapter.expandNodeWithEdges(result,
-                new ArangoNetworkMetadata.NodeExpansionMetadata(EXPAND_NODE_ID, EXPAND_EDGE_QUERY, connectionId));
+        List<CyNode> newNodes = adapter.expandNetworkEdges(result,
+                new ArangoNetworkMetadata.NetworkExpansionMetadata(EXPAND_EDGE_QUERY, connectionId));
 
-        assertNodeExpansion(network, newNodes, EXPAND_NODE_ID);
+        assertExpansion(network, newNodes, EXPAND_EDGE_QUERY, connectionId, null);
     }
 
 }

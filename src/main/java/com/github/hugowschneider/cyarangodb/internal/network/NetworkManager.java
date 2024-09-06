@@ -23,6 +23,7 @@ import org.cytoscape.work.TaskManager;
 
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
+import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata.NodeExpansionMetadata;
 
 /**
  * Manages the creation, import, and expansion of networks in Cytoscape using
@@ -155,7 +156,7 @@ public class NetworkManager {
      * @param docs        the list of RawJson documents
      * @param database    the ArangoDatabase instance
      * @param networkName the name of the network
-     * @param query       the query string
+     * @param metadata    the metadata of the network
      * @return the result of the network import
      * @throws ImportNetworkException if the import fails
      */
@@ -236,5 +237,41 @@ public class NetworkManager {
                 nodes,
                 null);
         taskManager.execute(taskIterator);
+    }
+
+    /**
+     * Expands a network by adding nodes and edges from a list of documents.
+     *
+     * @param docs        the list of RawJson documents
+     * @param networkView the view of the network to expand
+     * @param database    the ArangoDatabase instance
+     * @param metadata    the metadata of the network
+     * @return the list of new nodes
+     * @throws ImportNetworkException if the expansion fails
+     */
+    public List<CyNode> expandNetwork(List<RawJson> docs, CyNetworkView networkView, ArangoDatabase database,
+            ArangoNetworkMetadata.NetworkExpansionMetadata metadata) throws ImportNetworkException {
+
+        QueryResultValidator validator = new QueryResultValidator(docs);
+        if (!validator.isEdgeList() && !validator.isPathList()) {
+            throw new ImportNetworkException(
+                    "The result of the query must be either a list of edges or a list of paths.");
+        }
+
+        CyNetwork network = networkView.getModel();
+        ArangoNetworkAdapter adapter = this.networks
+                .get(network.getDefaultNetworkTable().getRow(network.getSUID()).get(Constants.NetworkColumns.ID,
+                        String.class));
+        List<CyNode> newNodes;
+        if (validator.isEdgeList()) {
+            newNodes = adapter.expandNetworkEdges(docs, metadata);
+        } else {
+            newNodes = adapter.expandNetworkPaths(docs, metadata);
+        }
+
+        networkView.updateView();
+        handleNetworkView(network, networkView);
+
+        return newNodes;
     }
 }
