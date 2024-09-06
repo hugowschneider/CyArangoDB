@@ -9,6 +9,7 @@ on:
       - "**"  
 jobs:
   build:
+    name: Build and Test
     env:
       ARANGODB_HOST: localhost
       ARANGODB_PORT: 8529
@@ -48,6 +49,9 @@ jobs:
           distribution: "microsoft"
           java-version: "21"
           cache: maven
+          settings-path: .github/maven/settings.xml
+      - name: Maven Version Check
+        run: mvn --version
       - name: Compile
         run: mvn --batch-mode compile
       - name: Run tests
