@@ -123,7 +123,7 @@ public class NetworkManager {
      * @param network     the network to create or update the view for
      * @param networkView the existing network view, or null to create a new one
      */
-    public void handleNetworkView(CyNetwork network, CyNetworkView networkView) {
+    private void handleNetworkView(CyNetwork network, CyNetworkView networkView) {
         CyNetworkView view;
         if (networkView != null) {
             view = networkView;
@@ -191,10 +191,10 @@ public class NetworkManager {
      * @param fromNodeView the view of the node to expand from
      * @param database     the ArangoDatabase instance
      * @param metadata     the metadata of the network
-     * @return the result of the network expansion
+     * @return the list of new nodes
      * @throws ImportNetworkException if the expansion fails
      */
-    public NetworkImportResult expandNetwork(List<RawJson> docs, CyNetworkView networkView, View<CyNode> fromNodeView,
+    public List<CyNode> expandNetwork(List<RawJson> docs, CyNetworkView networkView, View<CyNode> fromNodeView,
             ArangoDatabase database, ArangoNetworkMetadata.NodeExpansionMetadata metadata)
             throws ImportNetworkException {
         QueryResultValidator validator = new QueryResultValidator(docs);
@@ -220,7 +220,7 @@ public class NetworkManager {
         networkView.updateView();
         handleNetworkView(network, networkView);
 
-        return new NetworkImportResult(newNodes.size(), 0);
+        return newNodes;
     }
 
     /**

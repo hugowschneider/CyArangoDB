@@ -105,11 +105,11 @@ public class ExpandNodeDialog extends BaseNetworkDialog {
             throws ImportNetworkException {
         String nodeId = networkView.getModel().getDefaultNodeTable().getRow(networkView.getModel().getSUID()).get(
                 Constants.NodeColumns.ID, String.class);
-        NetworkImportResult result = networkManager.expandNetwork(docs, networkView, nodeView, database,
+        List<CyNode> result = networkManager.expandNetwork(docs, networkView, nodeView, database,
                 new ArangoNetworkMetadata.NodeExpansionMetadata(nodeId, metadata.getQuery(),
                         metadata.getConnectionId()));
         JOptionPane.showMessageDialog(this,
-                String.format("Network was expanded with %1$d nodes", result.getNodeCount(), result.getEdgeCount()));
+                String.format("Network was expanded with %1$d nodes", result.size()));
     }
 
     /**

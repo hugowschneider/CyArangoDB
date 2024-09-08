@@ -26,7 +26,7 @@ public class ArangoNetworkStyle {
     /**
      * The color table for node and edge colors.
      */
-    private static final Color[] COLOR_TABLE = {
+    static final Color[] COLOR_TABLE = {
             new Color(0, 128, 128), // Teal
             new Color(0, 255, 255), // Cyan
             new Color(0, 100, 0), // Dark Green

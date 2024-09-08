@@ -414,9 +414,7 @@ public class ArangoNetworkAdapter {
     private List<CyNode> expandNetwork(List<BaseEdgeDocument> edges) {
         List<CyNode> newNodes = new ArrayList<>();
 
-        this.loadedNodes.values().forEach((doc) -> {
-            getOrCreateCyNode(doc.getId(), network);
-        });
+
         CyTable cyEdgeTable = network.getDefaultEdgeTable();
         edges.forEach((edge) -> {
             if (this.edges.contains(edge.getId())) {
