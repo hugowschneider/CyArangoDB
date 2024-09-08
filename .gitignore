@@ -109,3 +109,4 @@ fabric.properties
 
 # End of https://mrkandreev.name/snippets/gitignore-generator/#Java,Intellij,VisualStudioCode
 target
+.idea

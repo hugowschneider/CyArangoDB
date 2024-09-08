@@ -41,7 +41,7 @@ import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManage
  * validating.
  * The dialog communicates with a ConnectionManager to perform the actual
  * operations on the connections.
- * 
+ *
  * Usage:
  * 1. Create an instance of ManageConnectionsDialog by passing a
  * ConnectionManager and a parent Frame.
@@ -63,7 +63,7 @@ import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManage
  * status of the connection.
  * 12. The dialog uses a custom DocumentFilter to allow only numeric input for
  * the port field.
- * 
+ *
  * Example usage:
  * ConnectionManager connectionManager = new ConnectionManager();
  * Frame parent = new Frame();
@@ -134,7 +134,7 @@ public class ManageConnectionsDialog extends JDialog {
 
     /**
      * Constructs a new dialog for managing connections.
-     * 
+     *
      * @param connectionManager the connection manager
      * @param parent            the parent frame
      */
@@ -353,7 +353,7 @@ public class ManageConnectionsDialog extends JDialog {
                 String host = hostField.getText();
                 int port = Integer.parseInt(portField.getText());
                 String username = usernameField.getText();
-                String password = passwordField.getText();
+                String password = String.valueOf(passwordField.getPassword());
                 String database = databaseField.getText();
 
                 ConnectionDetails connectionDetails = new ConnectionDetails(name, host, port, username, password,

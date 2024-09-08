@@ -23,7 +23,6 @@ import org.cytoscape.work.TaskManager;
 
 import com.arangodb.ArangoDatabase;
 import com.arangodb.util.RawJson;
-import com.github.hugowschneider.cyarangodb.internal.network.ArangoNetworkMetadata.NodeExpansionMetadata;
 
 /**
  * Manages the creation, import, and expansion of networks in Cytoscape using

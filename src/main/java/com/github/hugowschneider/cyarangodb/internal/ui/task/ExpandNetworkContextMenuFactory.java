@@ -2,10 +2,9 @@ package com.github.hugowschneider.cyarangodb.internal.ui.task;
 
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
-import org.cytoscape.view.model.View;
-import org.cytoscape.view.model.CyNetworkView;
-import org.cytoscape.model.CyNode;
+
 import org.cytoscape.task.AbstractNetworkViewTaskFactory;
+import org.cytoscape.view.model.CyNetworkView;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskMonitor;
