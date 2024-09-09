@@ -11,12 +11,12 @@ import org.cytoscape.work.TaskMonitor;
 
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
 import com.github.hugowschneider.cyarangodb.internal.network.NetworkManager;
-import com.github.hugowschneider.cyarangodb.internal.ui.ExpandNetworkDialog;
+import com.github.hugowschneider.cyarangodb.internal.ui.SelectNetworkOverlapDialog;
 
 /**
  * A factory for creating context menu tasks that expand a node in a network.
  */
-public class ExpandNetworkContextMenuFactory extends AbstractNetworkViewTaskFactory {
+public class SelectNetworkOverlapContextMenuFactory extends AbstractNetworkViewTaskFactory {
 
     /**
      * The connection manager responsible for managing database connections.
@@ -40,7 +40,7 @@ public class ExpandNetworkContextMenuFactory extends AbstractNetworkViewTaskFact
      * @param connectionManager the connection manager
      * @param parentFrame       the parent frame
      */
-    public ExpandNetworkContextMenuFactory(NetworkManager networkManager,
+    public SelectNetworkOverlapContextMenuFactory(NetworkManager networkManager,
             ConnectionManager connectionManager,
             JFrame parentFrame) {
         this.connectionManager = connectionManager;
@@ -57,7 +57,7 @@ public class ExpandNetworkContextMenuFactory extends AbstractNetworkViewTaskFact
     @Override
     public TaskIterator createTaskIterator(CyNetworkView networkView) {
         SwingUtilities.invokeLater(() -> {
-            ExpandNetworkDialog dialog = new ExpandNetworkDialog(connectionManager, networkManager, parentFrame,
+            SelectNetworkOverlapDialog dialog = new SelectNetworkOverlapDialog(connectionManager, networkManager, parentFrame,
                     networkView);
             dialog.setVisible(true);
         });

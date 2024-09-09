@@ -19,11 +19,6 @@ public class ButtonEditor extends DefaultCellEditor {
     private String label;
 
     /**
-     * Indicates whether the button has been pushed.
-     */
-    private boolean isPushed;
-
-    /**
      * The action command to be sent when the button is pressed.
      */
     private String action;
@@ -32,11 +27,6 @@ public class ButtonEditor extends DefaultCellEditor {
      * The JButton used for editing.
      */
     private JButton button;
-
-    /**
-     * The ActionListener to be notified when the button is pressed.
-     */
-    private ActionListener actionListener;
 
     /**
      * Constructs a new ButtonEditor.
@@ -50,7 +40,6 @@ public class ButtonEditor extends DefaultCellEditor {
     public ButtonEditor(JCheckBox checkBox, String action, ActionListener actionListener) {
         super(checkBox);
         this.action = action;
-        this.actionListener = actionListener;
         button = new JButton();
         button.setOpaque(true);
         button.addActionListener(new ActionListener() {
@@ -77,7 +66,6 @@ public class ButtonEditor extends DefaultCellEditor {
     public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
         label = (value == null) ? "" : value.toString();
         button.setText(action);
-        isPushed = true;
         return button;
     }
 
@@ -88,7 +76,6 @@ public class ButtonEditor extends DefaultCellEditor {
      */
     @Override
     public Object getCellEditorValue() {
-        isPushed = false;
         return label;
     }
 
@@ -99,7 +86,6 @@ public class ButtonEditor extends DefaultCellEditor {
      */
     @Override
     public boolean stopCellEditing() {
-        isPushed = false;
         return super.stopCellEditing();
     }
 }

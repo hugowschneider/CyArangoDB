@@ -21,7 +21,6 @@ import com.arangodb.ArangoDB;
 import com.arangodb.ArangoDatabase;
 import com.arangodb.Protocol;
 import com.arangodb.util.RawJson;
-import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -35,7 +34,7 @@ import com.google.gson.stream.JsonWriter;
  * It provides methods to add, remove, and retrieve connections, as well as
  * execute queries and manage query history.
  * The connections are stored in a JSON file for persistence.
- * 
+ *
  * Usage:
  * 1. Create an instance of ConnectionManager by calling the constructor with
  * the desired configuration folder path.
@@ -55,7 +54,7 @@ import com.google.gson.stream.JsonWriter;
  * history of a connection.
  * 12. Use the getArangoDatabase method to get the ArangoDatabase object for a
  * connection.
- * 
+ *
  * The ConnectionManager class uses the Gson library for JSON serialization and
  * deserialization.
  * It also uses the ArangoDB Java driver for interacting with the ArangoDB
@@ -72,7 +71,7 @@ public class ConnectionManager {
 
         /**
          * Writes a LocalDateTime object to JSON.
-         * 
+         *
          * @param jsonWriter    the JSON writer
          * @param localDateTime the LocalDateTime object
          * @throws IOException if an I/O error occurs
@@ -84,7 +83,7 @@ public class ConnectionManager {
 
         /**
          * Reads a LocalDateTime object from JSON.
-         * 
+         *
          * @param jsonReader the JSON reader
          * @return the LocalDateTime object
          * @throws IOException if an I/O error occurs
@@ -130,7 +129,7 @@ public class ConnectionManager {
     /**
      * Constructs a new ConnectionManager with the specified configuration folder
      * path.
-     * 
+     *
      * @param configFolderPath the configuration folder path
      */
     public ConnectionManager(String configFolderPath) {
@@ -154,7 +153,7 @@ public class ConnectionManager {
 
     /**
      * Gets the file path of the JSON file used to store the connections.
-     * 
+     *
      * @return the file path of the JSON file
      */
     public String getFilePath() {
@@ -163,9 +162,9 @@ public class ConnectionManager {
 
     /**
      * Adds a new connection with the specified name and details.
-     * 
+     *
      * @param details the connection details
-     * 
+     *
      * @return the connection uuid
      */
     public String addConnection(ConnectionDetails details) {
@@ -177,7 +176,7 @@ public class ConnectionManager {
 
     /**
      * Removes a connection with the specified name.
-     * 
+     *
      * @param uuid the connection uuid
      */
     public void removeConnection(String uuid) {
@@ -187,7 +186,7 @@ public class ConnectionManager {
 
     /**
      * Gets a connection with the specified name.
-     * 
+     *
      * @param uuid the connection uuid
      * @return the connection details
      */
@@ -197,7 +196,7 @@ public class ConnectionManager {
 
     /**
      * Gets all connections.
-     * 
+     *
      * @return a map of connection names to connection details
      */
     public Map<String, ConnectionDetails> getAllConnections() {
@@ -206,13 +205,13 @@ public class ConnectionManager {
 
     /**
      * Adds a query to the history of a connection.
-     * 
+     *
      * @param uuid  the connection uuid
      * @param query the query to add to the history
      * @return the date and time the query was added to the history
      */
     public LocalDateTime addQueryToHistory(String uuid, String query) {
-        LocalDateTime dateTime =  this.getConnection(uuid).addQueryToHistory(query);
+        LocalDateTime dateTime = this.getConnection(uuid).addQueryToHistory(query);
         this.saveConnections();
         return dateTime;
 
@@ -220,7 +219,7 @@ public class ConnectionManager {
 
     /**
      * Gets the query history of a connection.
-     * 
+     *
      * @param uuid the connection uuid
      * @return a list of query history items
      */
@@ -236,7 +235,7 @@ public class ConnectionManager {
 
     /**
      * Validates a connection with the specified name.
-     * 
+     *
      * @param uuid the connection uuid
      * @return true if the connection is valid, false otherwise
      */
@@ -246,7 +245,7 @@ public class ConnectionManager {
 
     /**
      * Gets the ArangoDatabase object for a connection.
-     * 
+     *
      * @param connectionDetails the connection details
      * @return the ArangoDatabase object
      */
@@ -260,7 +259,7 @@ public class ConnectionManager {
 
     /**
      * Validates a connection with the specified connection details.
-     * 
+     *
      * @param connectionDetails the connection details
      * @return true if the connection is valid, false otherwise
      */
@@ -273,14 +272,13 @@ public class ConnectionManager {
 
     /**
      * Runs a query from the query history of a connection.
-     * 
+     *
      * @param uuid  the connection uuid
-     * 
+     *
      * @param index the index of the query in the history
      * @return a list of RawJson documents
-     * @throws ImportNetworkException if an error occurs during query execution
      */
-    public List<RawJson> runHistory(String uuid, int index) throws ImportNetworkException {
+    public List<RawJson> runHistory(String uuid, int index) {
         List<ConnectionDetails.QueryHistory> history = getConnection(uuid).getHistory();
         return execute(uuid, history.get(index).getQuery(), false);
 
@@ -288,9 +286,9 @@ public class ConnectionManager {
 
     /**
      * Deletes a query from the query history of a connection.
-     * 
+     *
      * @param uuid  the connection uuid
-     * 
+     *
      * @param index the index of the query in the history
      */
     public void deleteQueryHistory(String uuid, int index) {
@@ -304,28 +302,25 @@ public class ConnectionManager {
 
     /**
      * Executes a query on a connection.
-     * 
+     *
      * @param uuid  the connection uuid
-     * 
+     *
      * @param query the query to execute
      * @return a list of RawJson documents
-     * @throws ImportNetworkException if an error occurs during query execution
      */
-    public List<RawJson> execute(String uuid, String query) throws ImportNetworkException {
+    public List<RawJson> execute(String uuid, String query) {
         return execute(uuid, query, true);
     }
 
     /**
      * Executes a query on a connection.
-     * 
+     *
      * @param uuid             the connection uuid
      * @param query            the query to execute
      * @param includeInHistory whether to include the query in the history
      * @return a list of RawJson documents
-     * @throws ImportNetworkException if an error occurs during query execution
      */
-    public List<RawJson> execute(String uuid, String query, boolean includeInHistory)
-            throws ImportNetworkException {
+    public List<RawJson> execute(String uuid, String query, boolean includeInHistory) {
         this.validate(uuid);
         ArangoDatabase database = getArangoDatabase(getConnection(uuid));
         validate(database);
@@ -340,7 +335,7 @@ public class ConnectionManager {
 
     /**
      * Gets the ArangoDatabase object for a connection with the specified name.
-     * 
+     *
      * @param uuid the connection uuid
      * @return the ArangoDatabase object
      */
@@ -350,8 +345,8 @@ public class ConnectionManager {
 
     /**
      * Updates the connection details for a connection with the specified name.
-     * 
-     * @param uuid             the connection uuid
+     *
+     * @param uuid              the connection uuid
      * @param connectionDetails the connection details
      */
     public void updateConnectionDetails(String uuid, ConnectionDetails connectionDetails) {
@@ -387,7 +382,7 @@ public class ConnectionManager {
 
     /**
      * Validates a connection with the specified ArangoDatabase object.
-     * 
+     *
      * @param db the ArangoDatabase object
      * @return true if the connection is valid, false otherwise
      */

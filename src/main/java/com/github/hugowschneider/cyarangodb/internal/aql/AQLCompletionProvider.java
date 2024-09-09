@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.swing.JOptionPane;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.Element;
@@ -34,7 +35,7 @@ import com.arangodb.model.CollectionsReadOptions;
  * AQLCompletionProvider is a class that provides auto-completion suggestions
  * for AQL (ArangoDB Query Language) in a text component.
  * It extends the AbstractCompletionProvider class.
- * 
+ *
  * The AQLCompletionProvider class contains arrays of AQL keywords and
  * functions, as well as collections, edges, and graph names.
  * It also has methods to update the database completions, get the already
@@ -42,22 +43,22 @@ import com.arangodb.model.CollectionsReadOptions;
  * specific position.
  * The class uses the ArangoDatabase class to interact with the ArangoDB
  * database.
- * 
+ *
  * AQLCompletionProvider is typically used in conjunction with a JTextComponent
  * to provide auto-completion suggestions while typing AQL queries.
  * It can be initialized with an ArangoDatabase instance and can be updated with
  * a new ArangoDatabase instance to reflect changes in the database.
- * 
+ *
  * The class provides context-aware completions based on the previous word
  * entered by the user.
  * It filters the completions based on the current word and the previous word,
  * and returns a list of completions sorted alphabetically.
- * 
+ *
  * AQLCompletionProvider also inherits the basic completion functionality from
  * the AbstractCompletionProvider class.
  * It adds AQL keywords and functions as basic completions, and provides
  * parameterized completions for AQL functions.
- * 
+ *
  * Note: This class requires the ArangoDB Java driver to be included in the
  * project.
  */
@@ -252,7 +253,6 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	 */
 	@Override
 	public String getAlreadyEnteredText(JTextComponent comp) {
-
 		Document doc = comp.getDocument();
 
 		int dot = comp.getCaretPosition();
@@ -327,65 +327,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	@Override
 	public List<ParameterizedCompletion> getParameterizedCompletions(
 			JTextComponent tc) {
-
-		List<ParameterizedCompletion> list = null;
-
-		// If this provider doesn't support parameterized completions,
-		// bail out now.
-		char paramListStart = getParameterListStart();
-		if (paramListStart == 0) {
-			return list; // null
-		}
-
-		int dot = tc.getCaretPosition();
-		Segment s = new Segment();
-		Document doc = tc.getDocument();
-		Element root = doc.getDefaultRootElement();
-		int line = root.getElementIndex(dot);
-		Element elem = root.getElement(line);
-		int offs = elem.getStartOffset();
-		int len = dot - offs - 1/* paramListStart.length() */;
-		if (len <= 0) { // Not enough chars on the line for a method.
-			return list; // null
-		}
-
-		try {
-
-			doc.getText(offs, len, s);
-
-			// Get the identifier preceding the '(', ignoring any whitespace
-			// between them.
-			offs = s.offset + len - 1;
-			while (offs >= s.offset && Character.isWhitespace(s.array[offs])) {
-				offs--;
-			}
-			int end = offs;
-			while (offs >= s.offset && isValidChar(s.array[offs])) {
-				offs--;
-			}
-
-			String text = new String(s.array, offs + 1, end - offs);
-
-			// Get a list of all Completions matching the text, but then
-			// narrow it down to just the ParameterizedCompletions.
-			List<Completion> l = getCompletionByInputText(text);
-			if (l != null && !l.isEmpty()) {
-				for (Object o : l) {
-					if (o instanceof ParameterizedCompletion) {
-						if (list == null) {
-							list = new ArrayList<>(1);
-						}
-						list.add((ParameterizedCompletion) o);
-					}
-				}
-			}
-
-		} catch (BadLocationException ble) {
-			ble.printStackTrace(); // Never happens
-		}
-
-		return list;
-
+		throw new UnsupportedOperationException("Not supported yet.");
 	}
 
 	/**
@@ -504,58 +446,7 @@ public class AQLCompletionProvider extends AbstractCompletionProvider {
 	 */
 	@Override
 	public List<Completion> getCompletionsAt(JTextComponent tc, Point p) {
-
-		int offset = tc.viewToModel2D(p);
-		if (offset < 0 || offset >= tc.getDocument().getLength()) {
-			lastCompletionsAtText = null;
-			return lastParameterizedCompletionsAt = null;
-		}
-
-		Segment segment = new Segment();
-		Document doc = tc.getDocument();
-		Element root = doc.getDefaultRootElement();
-		int line = root.getElementIndex(offset);
-		Element elem = root.getElement(line);
-		int start = elem.getStartOffset();
-		int end = elem.getEndOffset() - 1;
-
-		try {
-
-			doc.getText(start, end - start, segment);
-
-			// Get the valid chars before the specified offset.
-			int startOffs = segment.offset + (offset - start) - 1;
-			while (startOffs >= segment.offset && isValidChar(segment.array[startOffs])) {
-				startOffs--;
-			}
-
-			// Get the valid chars at and after the specified offset.
-			int endOffs = segment.offset + (offset - start);
-			while (endOffs < segment.offset + segment.count && isValidChar(segment.array[endOffs])) {
-				endOffs++;
-			}
-
-			int len = endOffs - startOffs - 1;
-			if (len <= 0) {
-				return lastParameterizedCompletionsAt = null;
-			}
-			String text = new String(segment.array, startOffs + 1, len);
-
-			if (text.equals(lastCompletionsAtText)) {
-				return lastParameterizedCompletionsAt;
-			}
-			completions.addAll(completions);
-			// Get a list of all Completions matching the text.
-			completions.addAll(getCompletionByInputText(text));
-			lastCompletionsAtText = text;
-			return lastParameterizedCompletionsAt = completions;
-
-		} catch (BadLocationException ble) {
-			ble.printStackTrace(); // Never happens
-		}
-
-		lastCompletionsAtText = null;
-		return lastParameterizedCompletionsAt = null;
+		throw new UnsupportedOperationException("Not supported yet.");
 
 	}
 
