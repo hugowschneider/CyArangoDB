@@ -21,6 +21,7 @@ import com.arangodb.ArangoDB;
 import com.arangodb.ArangoDatabase;
 import com.arangodb.Protocol;
 import com.arangodb.util.RawJson;
+import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails.ConnectionProtocol;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
@@ -252,7 +253,9 @@ public class ConnectionManager {
     public ArangoDatabase getArangoDatabase(ConnectionDetails connectionDetails) {
         ArangoDB arangoDB = new ArangoDB.Builder().host(connectionDetails.getHost(), connectionDetails.getPort())
                 .user(connectionDetails.getUser()).password(connectionDetails.getPassword())
-                .protocol(Protocol.HTTP2_VPACK).build();
+                .protocol(connectionDetails.getProtocol() == ConnectionProtocol.HTTP2 ? Protocol.HTTP2_VPACK
+                        : Protocol.HTTP_VPACK)
+                .build();
 
         return arangoDB.db(connectionDetails.getDatabase());
     }

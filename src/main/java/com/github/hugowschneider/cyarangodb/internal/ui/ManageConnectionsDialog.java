@@ -10,6 +10,7 @@ import java.util.Map;
 
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -28,8 +29,10 @@ import javax.swing.text.DocumentFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.arangodb.internal.net.Connection;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails;
 import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionManager;
+import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails.ConnectionProtocol;
 
 /**
  * Represents a dialog for managing connections to ArangoDB.
@@ -97,6 +100,11 @@ public class ManageConnectionsDialog extends JDialog {
      * Text field for entering the connection port.
      */
     private JTextField portField;
+
+    /**
+     * Combo box for selecting the connection protocol.
+     */
+    private JComboBox protocolField;
     /**
      * Text field for entering the connection username.
      */
@@ -211,6 +219,14 @@ public class ManageConnectionsDialog extends JDialog {
 
         gbc.gridx = 0;
         gbc.gridy++;
+        rightPanel.add(new JLabel("Protocol:"), gbc);
+        protocolField = new JComboBox<ConnectionProtocol>(ConnectionProtocol.values());
+        protocolField.setPreferredSize(new Dimension(200, 25));
+        gbc.gridx = 1;
+        rightPanel.add(protocolField, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
         rightPanel.add(new JLabel("Host:"), gbc);
         hostField = new JTextField();
         hostField.setPreferredSize(new Dimension(200, 25));
@@ -287,7 +303,8 @@ public class ManageConnectionsDialog extends JDialog {
         String password = new String(passwordField.getPassword());
         String database = databaseField.getText();
 
-        ConnectionDetails connectionDetails = new ConnectionDetails(name, host, port, username, password, database);
+        ConnectionDetails connectionDetails = new ConnectionDetails(name, host, port, username, password, database,
+                (ConnectionProtocol) protocolField.getSelectedItem());
         if (editedConnectionId == null) {
             editedConnectionId = connectionManager.addConnection(connectionDetails);
             tableModel.addRow(new Object[] { editedConnectionId, name, host, port, "Edit", "Delete", "Validate" });
@@ -329,6 +346,8 @@ public class ManageConnectionsDialog extends JDialog {
             usernameField.setText(details.getUser());
             passwordField.setText(details.getPassword());
             databaseField.setText(details.getDatabase());
+            protocolField
+                    .setSelectedItem(details.getProtocol() == null ? ConnectionProtocol.HTTP2 : details.getProtocol());
             editedConnectionId = id;
         }
     }
@@ -357,7 +376,7 @@ public class ManageConnectionsDialog extends JDialog {
                 String database = databaseField.getText();
 
                 ConnectionDetails connectionDetails = new ConnectionDetails(name, host, port, username, password,
-                        database);
+                        database, (ConnectionProtocol) protocolField.getSelectedItem());
 
                 isValid = connectionManager.validate(connectionDetails);
 

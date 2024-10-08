@@ -8,6 +8,24 @@ import java.time.LocalDateTime;
  * Represents the details required to establish a connection to a database.
  */
 public class ConnectionDetails {
+
+    /**
+     * Represents the protocol used to establish a connection.
+     */
+    public enum ConnectionProtocol {
+        HTTP1, HTTP2;
+
+        public String toString() {
+            switch (this) {
+                case HTTP2:
+                    return "HTTP/2";
+                case HTTP1:
+                default:
+                    return "HTTP/1.1";
+            }
+        }
+    }
+
     private String host;
     private int port;
     private String user;
@@ -15,6 +33,7 @@ public class ConnectionDetails {
     private String database;
     private List<QueryHistory> history;
     private String name;
+    private ConnectionProtocol protocol;
 
     /**
      * Constructs a new ConnectionDetails instance.
@@ -25,14 +44,17 @@ public class ConnectionDetails {
      * @param user     the database user
      * @param password the database password
      * @param database the database name
+     * @param protocol the connection protocol
      */
-    public ConnectionDetails(String name, String host, int port, String user, String password, String database) {
+    public ConnectionDetails(String name, String host, int port, String user, String password, String database,
+            ConnectionProtocol protocol) {
         this.name = name;
         this.host = host;
         this.port = port;
         this.user = user;
         this.password = password;
         this.database = database;
+        this.protocol = protocol;
         this.history = new ArrayList<>();
     }
 
@@ -118,6 +140,15 @@ public class ConnectionDetails {
     }
 
     /**
+     * Gets the connection protocol.
+     *
+     * @return the protocol
+     */
+    public ConnectionProtocol getProtocol() {
+        return this.protocol;
+    }
+
+    /**
      * Checks if this ConnectionDetails instance is equal to another object.
      *
      * @param obj the object to compare
@@ -133,7 +164,7 @@ public class ConnectionDetails {
         ConnectionDetails other = (ConnectionDetails) obj;
         return this.host.equals(other.host) && this.port == other.port && this.user.equals(other.user)
                 && this.password.equals(other.password) && this.database.equals(other.database)
-                && this.history.equals(other.history);
+                && this.history.equals(other.history) && this.protocol.equals(other.protocol);
     }
 
     /**

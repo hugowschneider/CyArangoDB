@@ -14,6 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.github.hugowschneider.cyarangodb.internal.connection.ConnectionDetails.ConnectionProtocol;
 import com.github.hugowschneider.cyarangodb.internal.network.ImportNetworkException;
 import com.github.hugowschneider.cyarangodb.internal.test.Helper;
 
@@ -114,7 +115,7 @@ public class ConnectionManagerTest {
     public void testUpdateConnectionDetails() {
 
         ConnectionDetails updatedDetails = new ConnectionDetails("name_updated", "localhost_updated", 9999,
-                "root_updated", "root_updated", "imdb_updated");
+                "root_updated", "root_updated", "imdb_updated", ConnectionProtocol.HTTP2);
 
         connectionManager.updateConnectionDetails(connectionId, updatedDetails);
 
